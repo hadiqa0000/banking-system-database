@@ -281,5 +281,52 @@ CREATE TABLE JournalLine (
     CONSTRAINT CHK_DEBIT_AND_CREDIT CHECK((debit > 0 AND credit =0) OR (credit >0 AND debit=0))
     
 );
+CREATE TABLE ATM (
+    bank_id BIGINT NOT NULL,
+    atm_id BIGINT(15) NOT NULL,
+    branch_id BIGINT NOT NULL,
+    terminal_id BIGINT NOT NULL,
+    status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'out_of_service', 'maintenance')),
+    location_address VARCHAR(255) NOT NULL,
+    installed_at TIMESTAMP NOT NULL,
+    last_maintenance_at TIMESTAMP NOT NULL.
+    next_maintenance_due DATE NOT NULL,
+    cash_capacity DECIMAL(15,2) NOT NULL CHECK (cash_capacity >= 0),
+    current_cash_balance DECIMAL(15,2) NOT NULL CHECK (current_cash_balance >= 0),
+    supports_cash_deposit BOOLEAN NOT NULL DEFAULT FALSE,
+    supports_contactless BOOLEAN NOT NULL DEFAULT FALSE,
+    supports_cardless BOOLEAN NOT NULL DEFAULT FALSE,
+    supports_statement_printing BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_cash_recycling BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    
+    
+    PRIMARY KEY (bank_id, atm_id),
+    FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id),
+    CONSTRAINT uniq_bank_terminal UNIQUE (bank_id, terminal_id)
+);
 
+CREATE TABLE ATMTransaction (
+    bank_id BIGINT NOT NULL,
+    account_id BIGINT NOT NULL,
+    transaction_id BIGINT NOT NULL,
+    atm_id BIGINT NOT NULL,
+    card_id BIGINT NOT NULL,
+    journal_id BIGINT(25) DEFAULT NULL,
+    transaction_type VARCHAR(15) NOT NULL CHECK (trasaction_type IN ('withdrawal', 'deposit', 'transfer', 'inquiry')),
+    
+    amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+    response_code VARCHAR(4) NOT NULL DEFAULT '00',
+    executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    transaction_status VARCHAR(20) NOT NULL DEFAULT 'completed'CHECK (transaction_status IN ('pending','completed','failed','reversed','cancelled')),
+    
+    PRIMARY KEY (bank_id, transaction_id),
+    FOREIGN KEY (bank_id, atm_id) REFERENCES ATM(bank_id, atm_id),
+    FOREIGN KEY (bank_id, card_id) REFERENCES Card(bank_id, card_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, account_id)REFERENCES Account(bank_id, account_id),
+    FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL,
+    CONSTRAINT uniq_bank_atm_tx_journal UNIQUE (bank_id, journal_id)
+);
 
+CREATE INDEX idx_atm_tx_date ON ATMTransaction (bank_id, executed_at);
+CREATE INDEX idx_atm_tx_type ON ATMTransaction (bank_id, tx_type);
