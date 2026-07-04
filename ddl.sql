@@ -1,8 +1,8 @@
 CREATE TABLE Bank(
 	bank_id BIGINT GENERATED ALWAYS AS IDENTITY,
 	legal_name VARCHAR(100) NOT NULL UNIQUE,
-	swift_code SMALLINT NOT NULL UNIQUE CHECK(LENGTH(swift_code) =15),
-	routing_no SMALLINT NULL CHECK(LENGTH(routing_no)=9),
+	bic VARCHAR(11)  NOT NULL UNIQUE CHECK(LENGTH(swift_code) =11),
+	routing_no VARCHAR(9) NULL CHECK(LENGTH(routing_no)=9),
 	country VARCHAR(50) NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	
@@ -20,7 +20,7 @@ PRIMARY KEY (bank_id, branch_id), FOREIGN KEY(bank_id) REFERENCES Bank(bank_id) 
 
 CREATE TABLE Role (
     bank_id BIGINT NOT NULL,
-    role_id SMALLINT NOT NULL,
+    role_id BIGINT NOT NULL,
     role_name VARCHAR(50) NOT NULL,
     PRIMARY KEY (bank_id, role_id),
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE,
@@ -29,9 +29,9 @@ CREATE TABLE Role (
 
 CREATE TABLE Employee(
 bank_id BIGINT NOT NULL,
-employee_id SMALLINT GENERATED ALWAYS AS IDENTITY,
-branch_id SMALLINT NOT NULL,
-role_id SMALLINT NOT NULL,
+employee_id BIGINT GENERATED ALWAYS AS IDENTITY,
+branch_id BIGINT NOT NULL,
+role_id BIGINT NOT NULL,
 salary DECIMAL(12,2) NOT NULL CHECK (salary >= 0),
 is_active BOOLEAN NOT NULL DEFAULT TRUE,
 PRIMARY KEY(bank_id, employee_id), 
@@ -41,14 +41,14 @@ FOREIGN KEY(bank_id, role_id) REFERENCES role(bank_id, role_id)
 
 CREATE TABLE Party (
     bank_id BIGINT NOT NULL,
-    party_id SMALLINT NOT NULL,
+    party_id BIGINT NOT NULL,
     type VARCHAR(15) NOT NULL CHECK (type IN ('individual', 'organization')),
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
 );
 CREATE TABLE Individual (
     bank_id BIGINT NOT NULL,
-    party_id SMALLINT NOT NULL,
+    party_id BIGINT NOT NULL,
     name VARCHAR(100) NOT NULL,
     surname VARCHAR(100) NOT NULL, 
     middle_name VARCHAR(100) NULL,
@@ -79,7 +79,7 @@ CREATE TABLE Individual (
 CREATE TABLE Account(
 bank_id BIGINT NOT NULL,
 account_id BIGINT NOT NULL,
-Branch_id SMALLINT NOT NULL,
+Branch_id BIGINT NOT NULL,
 account_number VARCHAR(34) NOT NULL,
 status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK(status IN('active', 'blacklisted', 'frozen', 'closed')),
 account_type VARCHAR(10) NOT NULL CHECK(account_type IN('checking','savings','business','student', 'money market', )),
@@ -138,7 +138,7 @@ CREATE TABLE CreditAssessment (
 bank_id BIGINT NOT NULL,
 assessment_id BIGINT NOT NULL,
 application_id BIGINT NOT NULL,
-employee_id SMALLINT NOT NULL,
+employee_id BIGINT NOT NULL,
 score INT NOT NULL,
 risk_level VARCHAR(10) NOT NULL CHECK (risk_level IN ('low', 'medium', 'high')),
 assessment_method VARCHAR(15) NOT NULL CHECK (assessment_method IN ('manual', 'automated', 'hybrid')),
@@ -158,8 +158,8 @@ FOREIGN KEY (bank_id, employee_id) REFERENCES Employee(bank_id, employee_id)
 
 CREATE TABLE Loan (
     bank_id BIGINT NOT NULL,
-    loan_id SMALLINT NOT NULL,
-    application_id SMALLINT NOT NULL,
+    loan_id BIGINT NOT NULL,
+    application_id BIGINT NOT NULL,
     principal DECIMAL(15, 2) NOT NULL,
     interest_rate DECIMAL(5, 4) NOT NULL,
     disbursed_at TIMESTAMP NULL,
@@ -181,9 +181,9 @@ CREATE TABLE Loan (
 
 CREATE TABLE LoanPayment (
     bank_id BIGINT NOT NULL,
-    payment_id SMALLINT NOT NULL,
-    loan_id SMALLINT NOT NULL,
-    journal_id SMALLINT NOT NULL,
+    payment_id BIGINT NOT NULL,
+    loan_id BIGINT NOT NULL,
+    journal_id BIGINT NOT NULL,
     total_amount_paid DECIMAL(15, 2) NOT NULL,
     principal_component DECIMAL(15, 2) NOT NULL,
     interest_component DECIMAL(15, 2) NOT NULL,
@@ -239,4 +239,47 @@ CONSTRAINT chk_remaining_balance
 CONSTRAINT chk_installment_number
     CHECK (installment_number > 0)
 );
+
+
+CREATE TABLE JournalEntry (
+    bank_id BIGINT NOT NULL,
+    journal_id BIGINT NOT NULL,
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reference_type VARCHAR(20) NOT NULL,
+    reference_id BIGINT NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    posting_status VARCHAR(15) NOT NULL CHECK (posting_status IN ('draft','posted','reversed' )),
+    posted_at TIMESTAMP NULL,
+    posted_by_employee_id BIGINT NOT NULL,
+    source_system VARCHAR(30) NOT NULL,
+    reversal_of_journal_id BIGINT NULL,
+    batch_id BIGINT NULL,
+    currency_code CHAR(3),
+   
+    PRIMARY KEY (bank_id, journal_id),
+    FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
+);
+
+CREATE TABLE JournalLine (
+    bank_id BIGINT NOT NULL,
+    journal_id BIGINT NOT NULL,
+    line_id BIGINT NOT NULL,
+    account_id BIGINT NOT NULL,
+    debit DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+    credit DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+    description VARCHAR(255) NULL,
+    line_number BIGINT NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    exchange_rate DECIMAL(18,8),
+    
+    
+    PRIMARY KEY (bank_id, journal_id, line_id),
+    FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id)
+    CONSTRAINT CHK_DEBIT CHECK(debit>=0 ),
+    CONSTRAINT CHK_CREDIT CHECK(credit>=0 ),
+    CONSTRAINT CHK_DEBIT_AND_CREDIT CHECK((debit > 0 AND credit =0) OR (credit >0 AND debit=0))
+    
+);
+
 
