@@ -134,4 +134,24 @@ FOREIGN KEY(bank_id, applicant_party_id) REFERENCES party(bank_id, party_id)
 );
 
 
+CREATE TABLE CreditAssessment (
+bank_id VARCHAR(10) NOT NULL,
+assessment_id VARCHAR(20) NOT NULL,
+application_id VARCHAR(20) NOT NULL,
+employee_id VARCHAR(10) NOT NULL,
+score INT NOT NULL,
+risk_level VARCHAR(10) NOT NULL CHECK (risk_level IN ('low', 'medium', 'high')),
+assessment_method VARCHAR(15) NOT NULL CHECK (assessment_method IN ('manual', 'automated', 'hybrid')),
+recommendation VARCHAR(15) NOT NULL CHECK (recommendation IN ('approve', 'reject', 'manual_review')),
+assessment_version VARCHAR(20) NOT NULL,
+debt_to_income_ratio DECIMAL(5,2) NULL CHECK (debt_to_income_ratio IS NULL OR debt_to_income_ratio >= 0),
+annual_income_snapshot DECIMAL(15,2) NULL CHECK (annual_income_snapshot IS NULL OR annual_income_snapshot >= 0),
+monthly_expenses_snapshot DECIMAL(15,2) NULL CHECK (monthly_expenses_snapshot IS NULL OR monthly_expenses_snapshot >= 0),
+comments TEXT NULL,
+assessed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+expires_at TIMESTAMP NULL,
+PRIMARY KEY (bank_id, assessment_id),
+FOREIGN KEY (bank_id, application_id) REFERENCES LoanApplication(bank_id, application_id),
+FOREIGN KEY (bank_id, employee_id) REFERENCES Employee(bank_id, employee_id)
+
 
