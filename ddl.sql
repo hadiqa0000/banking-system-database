@@ -66,8 +66,12 @@ CREATE TABLE Individual (
     country_of_residence VARCHAR(15) NOT NULL,
     city_of_residence VARCHAR(15) NOT NULL,
     district_of_residence VARCHAR(15) NOT NULL,
+    customer_status VARCHAR(10) NOT NULL CHECK(customer_status IN('Active', 'inactive', 'blacklisted'),
+    deceased_flag BOOLEAN NOT NULL DEFAULT FALSE,
     
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
     CONSTRAINT uniq_bank_national_id UNIQUE (bank_id, national_id)
 );
+
+
