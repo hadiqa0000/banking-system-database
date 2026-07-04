@@ -38,14 +38,14 @@ FOREIGN KEY(bank_id, role_id) REFERENCES role(bank_id, role_id)
 );
 
 CREATE TABLE Party (
-    bank_id VARCHAR(10) NOT NULL,
+    bank_id BIGINT NOT NULL,
     party_id VARCHAR(15) NOT NULL,
     type VARCHAR(15) NOT NULL CHECK (type IN ('individual', 'organization')),
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
 );
 CREATE TABLE Individual (
-    bank_id VARCHAR(10) NOT NULL,
+    bank_id BIGINT NOT NULL,
     party_id VARCHAR(15) NOT NULL,
     name VARCHAR(100) NOT NULL,
     surname VARCHAR(100) NOT NULL, 
@@ -62,16 +62,54 @@ CREATE TABLE Individual (
     disability_type VARCHAR(100) NULL,
     disability_disc VARCHAR(150) NULL,
     annual_income VARCHAR(100) NOT NULL,
-    employment_status VARCHAR(100) NOT NULL CHECK(employment_status IN('employed', 'unemployed'),
+    employment_status VARCHAR(100) NOT NULL CHECK(employment_status IN('employed', 'unemployed')),
     country_of_residence VARCHAR(15) NOT NULL,
     city_of_residence VARCHAR(15) NOT NULL,
     district_of_residence VARCHAR(15) NOT NULL,
-    customer_status VARCHAR(10) NOT NULL CHECK(customer_status IN('Active', 'inactive', 'blacklisted'),
+    customer_status VARCHAR(10) NOT NULL CHECK(customer_status IN('Active', 'inactive', 'blacklisted')),
     deceased_flag BOOLEAN NOT NULL DEFAULT FALSE,
     
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
     CONSTRAINT uniq_bank_national_id UNIQUE (bank_id, national_id)
 );
+
+CREATE TABLE Account(
+bank_id BIGINT NOT NULL,
+account_id VARCHAR(15) NOT NULL,
+Branch_id BIGINT NOT NULL,
+account_number VARCHAR(34) NOT NULL,
+status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK(status IN('active', 'blacklisted', 'frozen', 'closed')),
+account_type VARCHAR(10) NOT NULL CHECK(account_type IN('checking','savings','business','student')),
+opened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+currency_code CHAR(3) NOT NULL,
+closed_at TIMESTAMP NULL,
+last_activity_at TIMESTAMP,
+overdraft_limit DECIMAL(18,2) DEFAULT 0,
+Interest_rate DECIMAL(5,2) NULL,
+minimum_balance DECIMAL(18,2),
+PRIMARY KEY(bank_id, account_id),
+FOREIGN KEY(bank_id, branch_id) REFERENCES Branch(bank_id,branch_id),
+CONSTRAINT uniq_bank_account_number UNIQUE(bank_id,account_id)
+
+);
+
+CREATE TABLE Account_ownership(
+bank_id BIGINT NOT NULL,
+account_id VARCHAR(15) NOT NULL,
+party_id VARCHAR(15) NOT NULL,
+role VARCHAR(15) NOT NULL DEFAULT 'primary' CHECK (role IN('primary', 'joint', 'signatory')),
+ownershipt_pct DECIMAL(5,2) NOT NULL DEFAULT 100.00
+ownership_start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ownership_end_date TIMESTAMP NULL,
+ownership_status VARCHAR(15) CHECK (ownership_status IN ('active','inactive','revoked')),
+created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+PRIMARY KEY(bank_id,account_id, party_id),
+FOREIGN KEY (bank_id,account_id) REFERENCES Account(bank_id,account_id) ON DELETE CASCADE, 
+);
+FOREIGN KEY(bank_id,party_id) REFERENCES party(bank_id, party_id) ON DELETE CASCADE
+);
+
+CREATE TABLE LoanApplication(
 
 
