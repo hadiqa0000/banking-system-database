@@ -114,7 +114,7 @@ FOREIGN KEY(bank_id,party_id) REFERENCES party(bank_id, party_id) ON DELETE CASC
 
 CREATE TABLE LoanApplication(
 bank_id BIGINT NOT NULL,
-application_id VARCHAR(20) NOT NULL,
+application_id BIGINT NOT NULL,
 applicant_party_id VARCHAR(15) NOT NULL,
 requested_amount DECIMAL(15,2) NOT NULL,
 loan_application_status VARCHAR(15) NOT NULL DEFAULT 'Pending' CHECK(loan_application_status IN('pending', 'approved', 'rejected')),
@@ -135,10 +135,10 @@ FOREIGN KEY(bank_id, applicant_party_id) REFERENCES party(bank_id, party_id)
 
 
 CREATE TABLE CreditAssessment (
-bank_id VARCHAR(10) NOT NULL,
-assessment_id VARCHAR(20) NOT NULL,
-application_id VARCHAR(20) NOT NULL,
-employee_id VARCHAR(10) NOT NULL,
+bank_id BIGINT NOT NULL,
+assessment_id BIGINT NOT NULL,
+application_id BIGINT NOT NULL,
+employee_id SMALLINT NOT NULL,
 score INT NOT NULL,
 risk_level VARCHAR(10) NOT NULL CHECK (risk_level IN ('low', 'medium', 'high')),
 assessment_method VARCHAR(15) NOT NULL CHECK (assessment_method IN ('manual', 'automated', 'hybrid')),
@@ -153,5 +153,90 @@ expires_at TIMESTAMP NULL,
 PRIMARY KEY (bank_id, assessment_id),
 FOREIGN KEY (bank_id, application_id) REFERENCES LoanApplication(bank_id, application_id),
 FOREIGN KEY (bank_id, employee_id) REFERENCES Employee(bank_id, employee_id)
+);
 
+
+CREATE TABLE Loan (
+    bank_id BIGINT NOT NULL,
+    loan_id SMALLINT NOT NULL,
+    application_id SMALLINT NOT NULL,
+    principal DECIMAL(15, 2) NOT NULL,
+    interest_rate DECIMAL(5, 4) NOT NULL,
+    disbursed_at TIMESTAMP NULL,
+    loan_status VARCHAR(10) NOT NULL DEFAULT 'active'CHECK(loan_status IN('active','performing','delinquent','Defaulted', 'Charged-Off','Closed'),
+    maturity_date DATE NOT NULL,
+    next_payment_due_date DATE NOT NULL,
+    payment_frequency VARCHAR(20) NOT NULL DEFAULT 'monthly' CHECK(payment_frequency IN('monthly', 'weekly', 'bi-weekly', 'quaterly', 'semi-annual', 'annual')),
+    installment_amount DECIMAL(15,2) NOT NULL,
+    currency_code CHAR(3) NOT NULL,
+    late_fee_rate DECIMAL(15.2) NOT NULL,
+    grace_period_days SMALLINT NULL DEFAULT 0,
+    closed_at DATE NULL,
+    closure_reason VARCHAR(40) NULL CHECK(closure_reason IN('paid in full', 'early closure', 'refinancing', 'one-time settlememnt', 'default and charge-off', 'sent to collections', 'fraud or policy violation'))
+    
+    PRIMARY KEY (bank_id, loan_id),
+    FOREIGN KEY (bank_id, application_id) REFERENCES LoanApplication(bank_id, application_id),
+    CONSTRAINT uniq_bank_application UNIQUE (bank_id, application_id)
+);
+
+CREATE TABLE LoanPayment (
+    bank_id BIGINT NOT NULL,
+    payment_id SMALLINT NOT NULL,
+    loan_id SMALLINT NOT NULL,
+    journal_id SMALLINT NOT NULL,
+    total_amount_paid DECIMAL(15, 2) NOT NULL,
+    principal_component DECIMAL(15, 2) NOT NULL,
+    interest_component DECIMAL(15, 2) NOT NULL,
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK(payment_status IN('pending', 'completed', 'failed','reversed')),
+    payment_method VARCHAR(20) NOT NULL CHECK (Payment_method IN('cash', 'bank transfer', 'debit account', 'cheque')),
+    payment_channel VARCHAR(20)CHECK (
+    payment_channel IN ('branch','atm','online','mobile','api' )),
+    installment_number SMALLINT NOT NULL,
+    remaining_balance_after_payment DECIMAL(15,2) NOT NULL,
+    late_fee_component DECIMAL(15,2) NULL,
+    penalty_interest_component DECIMAL(15,2) NULL,
+    payment_reference VARCHAR(50)  NUL,
+    paid_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (bank_id, payment_id),
+    FOREIGN KEY (bank_id, loan_id) REFERENCES Loan(bank_id, loan_id),
+    FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE CASCADE,
+    CONSTRAINT uniq_bank_payment_journal
+    UNIQUE (bank_id, journal_id),
+
+CONSTRAINT uniq_bank_payment_reference
+    UNIQUE (bank_id, payment_reference),
+
+CONSTRAINT chk_principal_component
+    CHECK (principal_component >= 0),
+
+CONSTRAINT chk_interest_component
+    CHECK (interest_component >= 0),
+
+CONSTRAINT chk_late_fee
+    CHECK (
+        late_fee_component IS NULL
+        OR late_fee_component >= 0
+    ),
+
+CONSTRAINT chk_penalty_interest
+    CHECK (
+        penalty_interest_component IS NULL
+        OR penalty_interest_component >= 0
+    ),
+
+CONSTRAINT chk_total_amount
+    CHECK (
+        total_amount_paid =
+            principal_component
+          + interest_component
+          + COALESCE(late_fee_component, 0)
+          + COALESCE(penalty_interest_component, 0)
+    ),
+
+CONSTRAINT chk_remaining_balance
+    CHECK (remaining_balance_after_payment >= 0),
+
+CONSTRAINT chk_installment_number
+    CHECK (installment_number > 0)
+);
 
