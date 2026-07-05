@@ -18,7 +18,7 @@ CREATE TABLE Branch (
     branch_id BIGINT GENERATED ALWAYS AS IDENTITY,
     name VARCHAR(100) NOT NULL,
     region VARCHAR(50) NOT NULL,
-    branch_addres VARCHAR(50) NOT NULL,
+    branch_address VARCHAR(255) NOT NULL, 
     country_code CHAR(2) NOT NULL,
     PRIMARY KEY (bank_id, branch_id), 
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE, 
@@ -27,7 +27,7 @@ CREATE TABLE Branch (
 
 CREATE TABLE Role (
     bank_id BIGINT NOT NULL,
-    role_id BIGINT NOT NULL,
+    role_id BIGINT GENERATED ALWAYS AS IDENTITY, 
     role_name VARCHAR(50) NOT NULL,
     PRIMARY KEY (bank_id, role_id),
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE,
@@ -48,7 +48,7 @@ CREATE TABLE Employee (
 
 CREATE TABLE Party (
     bank_id BIGINT NOT NULL,
-    party_id BIGINT NOT NULL,
+    party_id BIGINT GENERATED ALWAYS AS IDENTITY, -- Explicitly structured generation
     type VARCHAR(15) NOT NULL CHECK (type IN ('individual', 'organization')),
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
@@ -62,21 +62,21 @@ CREATE TABLE Individual (
     middle_name VARCHAR(100) NULL,
     dob DATE NOT NULL,
     national_id VARCHAR(20) NOT NULL,
-    gender VARCHAR(7) NOT NULL CHECK (gender IN ('male', 'female', 'intersex')),
+    gender VARCHAR(10) NOT NULL CHECK (gender IN ('male', 'female', 'intersex')),
     SSN VARCHAR(9) NULL,
     nationality VARCHAR(65) NOT NULL,
-    registeration_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    occupation VARCHAR(10) NULL,
-    martial_status VARCHAR(15) NOT NULL CHECK (martial_status IN ('married', 'not married', 'divorced', 'widowed', 'seperated')),
+    registration_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+    occupation VARCHAR(100) NULL, 
+    marital_status VARCHAR(15) NOT NULL CHECK (marital_status IN ('married', 'single', 'divorced', 'widowed', 'separated')), -- Fixed typos & unified options
     disability BOOLEAN NOT NULL DEFAULT FALSE,
     disability_type VARCHAR(100) NULL,
-    disability_disc VARCHAR(150) NULL,
-    annual_income BIGINT NOT NULL,
-    employment_status VARCHAR(100) NOT NULL CHECK (employment_status IN ('employed', 'unemployed')),
-    country_of_residence VARCHAR(15) NOT NULL,
-    city_of_residence VARCHAR(15) NOT NULL,
-    district_of_residence VARCHAR(15) NOT NULL,
-    customer_status VARCHAR(10) NOT NULL CHECK (customer_status IN ('Active', 'inactive', 'blacklisted')),
+    disability_desc VARCHAR(150) NULL, -- Fixed typo
+    annual_income DECIMAL(15, 2) NOT NULL CHECK (annual_income >= 0), 
+    employment_status VARCHAR(100) NOT NULL CHECK (employment_status IN ('employed', 'unemployed', 'self_employed', 'retired')),
+    country_of_residence VARCHAR(100) NOT NULL, 
+    city_of_residence VARCHAR(100) NOT NULL,
+    district_of_residence VARCHAR(100) NOT NULL,
+    customer_status VARCHAR(15) NOT NULL CHECK (customer_status IN ('active', 'inactive', 'blacklisted')),
     deceased_flag BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
@@ -93,35 +93,20 @@ CREATE TABLE Organization (
     organization_type VARCHAR(30) NOT NULL CHECK (organization_type IN ('sole proprietorship','partnership', 'private limited','public limited','government','non-profit','bank','corporation')), 
     industry VARCHAR(100) NULL,
     incorporation_date DATE NOT NULL,
-
     email VARCHAR(255) NULL,
-
     phone_number VARCHAR(30) NULL,
-
     website VARCHAR(255) NULL,
-
-    annual_revenue DECIMAL(18,2) NULL,
-
-    employee_count INT NULL
-        CHECK (employee_count >= 0),
-
+    annual_revenue DECIMAL(18,2) NULL CHECK (annual_revenue >= 0),
+    employee_count INT NULL CHECK (employee_count >= 0),
     PRIMARY KEY (bank_id, party_id),
-
-    FOREIGN KEY (bank_id, party_id)
-        REFERENCES Party(bank_id, party_id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT uniq_bank_registration
-        UNIQUE(bank_id, registration_number),
-
-    CONSTRAINT uniq_bank_tax_id
-        UNIQUE(bank_id, tax_id)
-
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
+    CONSTRAINT uniq_bank_registration UNIQUE (bank_id, registration_number),
+    CONSTRAINT uniq_bank_tax_id UNIQUE (bank_id, tax_id)
 );
 
 CREATE TABLE Account (
     bank_id BIGINT NOT NULL,
-    account_id BIGINT NOT NULL,
+    account_id BIGINT GENERATED ALWAYS AS IDENTITY,
     branch_id BIGINT NOT NULL,
     account_number VARCHAR(34) NOT NULL,
     status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blacklisted', 'frozen', 'closed')),
@@ -130,9 +115,9 @@ CREATE TABLE Account (
     currency_code CHAR(3) NOT NULL,
     closed_at TIMESTAMP NULL,
     last_activity_at TIMESTAMP NULL,
-    overdraft_limit DECIMAL(18, 2) DEFAULT 0,
-    interest_rate DECIMAL(5, 2) NULL,
-    minimum_balance DECIMAL(18, 2) NULL,
+    overdraft_limit DECIMAL(18, 2) DEFAULT 0 CHECK (overdraft_limit >= 0),
+    interest_rate DECIMAL(5, 2) NULL CHECK (interest_rate >= 0),
+    minimum_balance DECIMAL(18, 2) NULL DEFAULT 0 CHECK (minimum_balance >= 0),
     PRIMARY KEY (bank_id, account_id),
     FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id),
     CONSTRAINT uniq_bank_account_number UNIQUE (bank_id, account_number)
@@ -143,7 +128,7 @@ CREATE TABLE Account_ownership (
     account_id BIGINT NOT NULL,
     party_id BIGINT NOT NULL,
     role VARCHAR(15) NOT NULL DEFAULT 'primary' CHECK (role IN ('primary', 'joint', 'signatory')),
-    ownershipt_pct DECIMAL(5, 2) NOT NULL DEFAULT 100.00,
+    ownership_pct DECIMAL(5, 2) NOT NULL DEFAULT 100.00 CHECK (ownership_pct BETWEEN 0 AND 100),
     ownership_start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ownership_end_date TIMESTAMP NULL,
     ownership_status VARCHAR(15) CHECK (ownership_status IN ('active', 'inactive', 'revoked')),
@@ -152,36 +137,36 @@ CREATE TABLE Account_ownership (
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
 );
-
 CREATE TABLE JournalEntry (
     bank_id BIGINT NOT NULL,
-    journal_id BIGINT NOT NULL,
-    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    journal_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    entry_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     reference_type VARCHAR(20) NOT NULL,
     reference_id BIGINT NOT NULL,
     description VARCHAR(255) NOT NULL,
     posting_status VARCHAR(15) NOT NULL CHECK (posting_status IN ('draft', 'posted', 'reversed')),
     posted_at TIMESTAMP NULL,
-    posted_by_employee_id BIGINT NOT NULL,
+    posted_by_employee_id BIGINT NULL,
     source_system VARCHAR(30) NOT NULL,
     reversal_of_journal_id BIGINT NULL,
     batch_id BIGINT NULL,
-    currency_code CHAR(3) NULL,
+    currency_code CHAR(3) NOT NULL,
     PRIMARY KEY (bank_id, journal_id),
-    FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
+    FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, posted_by_employee_id) REFERENCES Employee(bank_id, employee_id)
 );
 
 CREATE TABLE JournalLine (
     bank_id BIGINT NOT NULL,
     journal_id BIGINT NOT NULL,
-    line_id BIGINT NOT NULL,
+    line_id BIGINT GENERATED ALWAYS AS IDENTITY,
     account_id BIGINT NOT NULL,
     debit DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
     credit DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
     description VARCHAR(255) NULL,
     line_number BIGINT NOT NULL,
     currency_code CHAR(3) NOT NULL,
-    exchange_rate DECIMAL(18, 8) NULL,
+    exchange_rate DECIMAL(18, 8) NULL DEFAULT 1.00000000,
     PRIMARY KEY (bank_id, journal_id, line_id),
     FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id),
@@ -192,28 +177,29 @@ CREATE TABLE JournalLine (
 
 CREATE TABLE LoanApplication (
     bank_id BIGINT NOT NULL,
-    application_id BIGINT NOT NULL,
+    application_id BIGINT GENERATED ALWAYS AS IDENTITY,
     applicant_party_id BIGINT NOT NULL,
-    requested_amount DECIMAL(15, 2) NOT NULL,
-    loan_application_status VARCHAR(15) NOT NULL DEFAULT 'pending' CHECK (loan_application_status IN ('pending', 'approved', 'rejected')),
+    requested_amount DECIMAL(15, 2) NOT NULL CHECK (requested_amount > 0),
+    loan_application_status VARCHAR(15) NOT NULL DEFAULT 'pending' CHECK (loan_application_status IN ('pending', 'approved', 'rejected', 'cancelled')),
     application_sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    loan_type VARCHAR(30) NOT NULL CHECK (loan_type IN ('personal loan', 'mortgage loan', 'auto loan', 'student loan', 'business loan', 'credit card loan', 'Term Loan', 'working capital loan', 'business_line_of_credit', 'equipment_financing_loan')),
-    requested_term_months SMALLINT NOT NULL CHECK (requested_term_months <= 250),
+    loan_type VARCHAR(30) NOT NULL CHECK (loan_type IN ('personal loan', 'mortgage loan', 'auto loan', 'student loan', 'business loan', 'credit card loan', 'term loan', 'working capital loan', 'business_line_of_credit', 'equipment_financing_loan')),
+    requested_term_months SMALLINT NOT NULL CHECK (requested_term_months > 0),
     purpose_of_loan VARCHAR(250) NOT NULL,
     requested_interest_rate DECIMAL(5, 2) NULL CHECK (requested_interest_rate > 0),
-    assigned_employee_id BIGINT NOT NULL,
+    assigned_employee_id BIGINT NULL, 
     decision_at TIMESTAMP NULL,
-    rejection_reason VARCHAR(15) NULL,
-    approved_amount DECIMAL(15, 2) NULL,
-    approved_term_month SMALLINT NULL CHECK (approved_term_month <= 250),
-    approved_interest_rate DECIMAL(5, 2) NULL,
+    rejection_reason VARCHAR(255) NULL,
+    approved_amount DECIMAL(15, 2) NULL CHECK (approved_amount >= 0),
+    approved_term_month SMALLINT NULL CHECK (approved_term_month > 0),
+    approved_interest_rate DECIMAL(5, 2) NULL CHECK (approved_interest_rate >= 0),
     PRIMARY KEY (bank_id, application_id),
-    FOREIGN KEY (bank_id, applicant_party_id) REFERENCES Party(bank_id, party_id)
+    FOREIGN KEY (bank_id, applicant_party_id) REFERENCES Party(bank_id, party_id),
+    FOREIGN KEY (bank_id, assigned_employee_id) REFERENCES Employee(bank_id, employee_id)
 );
 
 CREATE TABLE CreditAssessment (
     bank_id BIGINT NOT NULL,
-    assessment_id BIGINT NOT NULL,
+    assessment_id BIGINT GENERATED ALWAYS AS IDENTITY,
     application_id BIGINT NOT NULL,
     employee_id BIGINT NOT NULL,
     score INT NOT NULL,
@@ -234,29 +220,31 @@ CREATE TABLE CreditAssessment (
 
 CREATE TABLE Loan (
     bank_id BIGINT NOT NULL,
-    loan_id BIGINT NOT NULL,
+    loan_id BIGINT GENERATED ALWAYS AS IDENTITY,
     application_id BIGINT NOT NULL,
-    principal DECIMAL(15, 2) NOT NULL,
-    interest_rate DECIMAL(5, 4) NOT NULL,
+    account_id BIGINT NOT NULL,
+    principal DECIMAL(15, 2) NOT NULL CHECK (principal > 0),
+    interest_rate DECIMAL(5, 4) NOT NULL CHECK (interest_rate >= 0),
     disbursed_at TIMESTAMP NULL,
-    loan_status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (loan_status IN ('active', 'performing', 'delinquent', 'Defaulted', 'Charged-Off', 'Closed')),
+    loan_status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (loan_status IN ('active', 'performing', 'delinquent', 'defaulted', 'charged_off', 'closed')),
     maturity_date DATE NOT NULL,
     next_payment_due_date DATE NOT NULL,
     payment_frequency VARCHAR(20) NOT NULL DEFAULT 'monthly' CHECK (payment_frequency IN ('monthly', 'weekly', 'bi-weekly', 'quarterly', 'semi-annual', 'annual')),
-    installment_amount DECIMAL(15, 2) NOT NULL,
+    installment_amount DECIMAL(15, 2) NOT NULL CHECK (installment_amount >= 0),
     currency_code CHAR(3) NOT NULL,
-    late_fee_rate DECIMAL(15, 2) NOT NULL,
-    grace_period_days SMALLINT NULL DEFAULT 0,
+    late_fee_rate DECIMAL(5, 4) NOT NULL CHECK (late_fee_rate >= 0),
+    grace_period_days SMALLINT NULL DEFAULT 0 CHECK (grace_period_days >= 0),
     closed_at DATE NULL,
     closure_reason VARCHAR(40) NULL CHECK (closure_reason IN ('paid in full', 'early closure', 'refinancing', 'one-time settlement', 'default and charge-off', 'sent to collections', 'fraud or policy violation')),
     PRIMARY KEY (bank_id, loan_id),
     FOREIGN KEY (bank_id, application_id) REFERENCES LoanApplication(bank_id, application_id),
+    FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id),
     CONSTRAINT uniq_bank_application UNIQUE (bank_id, application_id)
 );
 
 CREATE TABLE LoanPayment (
     bank_id BIGINT NOT NULL,
-    payment_id BIGINT NOT NULL,
+    payment_id BIGINT GENERATED ALWAYS AS IDENTITY,
     loan_id BIGINT NOT NULL,
     journal_id BIGINT NOT NULL,
     total_amount_paid DECIMAL(15, 2) NOT NULL,
@@ -267,8 +255,8 @@ CREATE TABLE LoanPayment (
     payment_channel VARCHAR(20) CHECK (payment_channel IN ('branch', 'atm', 'online', 'mobile', 'api')),
     installment_number SMALLINT NOT NULL,
     remaining_balance_after_payment DECIMAL(15, 2) NOT NULL,
-    late_fee_component DECIMAL(15, 2) NULL,
-    penalty_interest_component DECIMAL(15, 2) NULL,
+    late_fee_component DECIMAL(15, 2) NULL DEFAULT 0.00,
+    penalty_interest_component DECIMAL(15, 2) NULL DEFAULT 0.00,
     payment_reference VARCHAR(50) NULL,
     paid_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (bank_id, payment_id),
@@ -289,23 +277,23 @@ CREATE TABLE LoanPayment (
 
 CREATE TABLE CardProduct (
     bank_id BIGINT NOT NULL,
-    card_product_id BIGINT NOT NULL,
+    card_product_id BIGINT GENERATED ALWAYS AS IDENTITY,
     product_name VARCHAR(100) NOT NULL,
     card_type VARCHAR(15) NOT NULL CHECK (card_type IN ('debit', 'credit', 'prepaid', 'charge')),
     card_segment VARCHAR(20) NOT NULL CHECK (card_segment IN ('consumer', 'business', 'corporate', 'private_banking')),
     card_network VARCHAR(20) CHECK (card_network IN ('visa', 'mastercard', 'amex', 'unionpay', 'discover')),
     supports_contactless BOOLEAN NOT NULL DEFAULT TRUE,
     daily_atm_withdrawal_limit DECIMAL(15, 2) NULL DEFAULT 0 CHECK (daily_atm_withdrawal_limit >= 0),
-    daily_purchase_limit DECIMAL(15, 2) NOT NULL,
+    daily_purchase_limit DECIMAL(15, 2) NOT NULL CHECK (daily_purchase_limit >= 0),
     min_age SMALLINT NOT NULL CHECK (min_age >= 0),
     min_cred_score SMALLINT NULL CHECK (min_cred_score IS NULL OR min_cred_score BETWEEN 300 AND 850),
-    annual_fee DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
+    annual_fee DECIMAL(15, 2) NOT NULL DEFAULT 0.00 CHECK (annual_fee >= 0), 
     PRIMARY KEY (bank_id, card_product_id)
 );
 
 CREATE TABLE Card (
     bank_id BIGINT NOT NULL,
-    card_id BIGINT NOT NULL,
+    card_id BIGINT GENERATED ALWAYS AS IDENTITY,
     card_product_id BIGINT NOT NULL,
     account_id BIGINT NOT NULL,
     card_number VARCHAR(19) NOT NULL,
@@ -316,8 +304,8 @@ CREATE TABLE Card (
     cardholder_name VARCHAR(100) NOT NULL,
     last_used_at TIMESTAMP NULL,
     pin_retry_count SMALLINT DEFAULT 0 CHECK (pin_retry_count BETWEEN 0 AND 3),
-    pin_last_changed_at TIMESTAMP NULL,               
-    replacement_reason VARCHAR(20) CHECK (replacement_reason IN ('expired', 'lost', 'stolen', 'damaged')),
+    pin_last_changed_at TIMESTAMP NULL,              
+    replacement_reason VARCHAR(20) CHECK (replacement_reason IN ('expired', 'lost', 'stolen', 'damaged')), format
     PRIMARY KEY (bank_id, card_id),
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, card_product_id) REFERENCES CardProduct(bank_id, card_product_id),
@@ -327,7 +315,7 @@ CREATE TABLE Card (
 CREATE TABLE CardApplication (
     bank_id BIGINT NOT NULL,
     account_id BIGINT NOT NULL,
-    application_id BIGINT NOT NULL, 
+    application_id BIGINT GENERATED ALWAYS AS IDENTITY, 
     applicant_party_id BIGINT NOT NULL,
     card_product_id BIGINT NOT NULL, 
     application_status VARCHAR(20) NOT NULL CHECK (application_status IN ('pending', 'approved', 'rejected', 'cancelled')),
@@ -346,7 +334,7 @@ CREATE TABLE CardApplication (
 
 CREATE TABLE ATM (
     bank_id BIGINT NOT NULL,
-    atm_id BIGINT NOT NULL,
+    atm_id BIGINT GENERATED ALWAYS AS IDENTITY,
     branch_id BIGINT NOT NULL,
     terminal_id BIGINT NOT NULL,
     status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'out_of_service', 'maintenance')),
@@ -369,7 +357,7 @@ CREATE TABLE ATM (
 CREATE TABLE ATMTransaction (
     bank_id BIGINT NOT NULL,
     account_id BIGINT NOT NULL,
-    transaction_id BIGINT NOT NULL,
+    transaction_id BIGINT GENERATED ALWAYS AS IDENTITY,
     atm_id BIGINT NOT NULL,
     card_id BIGINT NOT NULL,
     journal_id BIGINT DEFAULT NULL,
@@ -390,21 +378,22 @@ CREATE TABLE ATMTransaction (
     FOREIGN KEY (bank_id, card_id) REFERENCES Card(bank_id, card_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id),
     FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL,
-    CONSTRAINT uniq_bank_atm_tx_journal UNIQUE (bank_id, journal_id)
+    CONSTRAINT uniq_bank_atm_tx_journal UNIQUE (bank_id, journal_id),
+    FOREIGN KEY (bank_id, employee_id) REFERENCES Employee(bank_id, employee_id)
 );
 
 CREATE TABLE Locker (
     bank_id BIGINT NOT NULL,
-    locker_id BIGINT NOT NULL,
+    locker_id BIGINT GENERATED ALWAYS AS IDENTITY,
     branch_id BIGINT NOT NULL,
     renter_party_id BIGINT DEFAULT NULL,
     locker_number BIGINT NOT NULL,
     size_tier VARCHAR(10) NOT NULL DEFAULT 'small' CHECK (size_tier IN ('small', 'medium', 'large')),
-    annual_fee DECIMAL(8, 2) NOT NULL,
+    annual_fee DECIMAL(8, 2) NOT NULL CHECK (annual_fee >= 0),
     leased_from DATE NULL DEFAULT CURRENT_DATE,
     leased_until DATE DEFAULT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'leased', 'reserved', 'maintenance', 'retired')),
-    security_deposit DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    security_deposit DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (security_deposit >= 0),
     keys_issued SMALLINT NOT NULL DEFAULT 2 CHECK (keys_issued >= 0),
     last_inspected_at DATE NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -415,11 +404,10 @@ CREATE TABLE Locker (
     CONSTRAINT uniq_branch_locker_num UNIQUE (bank_id, branch_id, locker_number)
 );
 
-
 CREATE TABLE AuditLog (
     bank_id BIGINT NOT NULL,
     branch_id BIGINT NULL,
-    audit_id BIGSERIAL, 
+    audit_id BIGINT GENERATED ALWAYS AS IDENTITY,
     actor_type VARCHAR(20) NOT NULL CHECK (actor_type IN ('employee', 'system', 'api', 'scheduler')),
     source VARCHAR(20) CHECK (source IN ('branch', 'atm', 'online', 'mobile', 'api', 'system')),
     actor_employee_id BIGINT DEFAULT NULL,
@@ -439,11 +427,9 @@ CREATE TABLE AuditLog (
     FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id)
 );
 
-
-CREATE INDEX idx_journal_timestamp ON JournalEntry (bank_id, timestamp);
+CREATE INDEX idx_journal_timestamp ON JournalEntry (bank_id, entry_timestamp);
 CREATE INDEX idx_loan_app_status ON LoanApplication (bank_id, loan_application_status);
 CREATE INDEX idx_account_opened ON Account (bank_id, opened_at);
-
 CREATE INDEX idx_audit_timestamp ON AuditLog (bank_id, logged_at);
 CREATE INDEX idx_audit_entity ON AuditLog (bank_id, entity_type, entity_id);
 CREATE INDEX idx_audit_employee ON AuditLog (bank_id, actor_employee_id);
