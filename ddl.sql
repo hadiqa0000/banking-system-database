@@ -1,4 +1,3 @@
-
 CREATE TABLE Bank (
     bank_id BIGINT GENERATED ALWAYS AS IDENTITY,
     legal_name VARCHAR(100) NOT NULL UNIQUE,
@@ -39,16 +38,28 @@ CREATE TABLE Employee (
     employee_id BIGINT GENERATED ALWAYS AS IDENTITY,
     branch_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
+    manager_id BIGINT NULL, 
+    employee_number VARCHAR(30) NOT NULL,
+    work_email VARCHAR(255) NOT NULL,
+    phone VARCHAR(30) NULL,
     salary DECIMAL(12, 2) NOT NULL CHECK (salary >= 0),
+    hire_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    termination_date DATE NULL,
+    employment_status VARCHAR(20) NOT NULL DEFAULT 'active' 
+        CHECK (employment_status IN ('active', 'on_leave', 'suspended', 'terminated')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     PRIMARY KEY (bank_id, employee_id), 
     FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id), 
-    FOREIGN KEY (bank_id, role_id) REFERENCES Role(bank_id, role_id)
+    FOREIGN KEY (bank_id, role_id) REFERENCES Role(bank_id, role_id),
+    FOREIGN KEY (bank_id, manager_id) REFERENCES Employee(bank_id, employee_id) ON DELETE SET NULL,
+    CONSTRAINT uniq_bank_employee_number UNIQUE (bank_id, employee_number),
+    CONSTRAINT uniq_bank_employee_email UNIQUE (bank_id, work_email),
+    CONSTRAINT chk_termination_after_hire CHECK (termination_date IS NULL OR termination_date >= hire_date)
 );
 
 CREATE TABLE Party (
     bank_id BIGINT NOT NULL,
-    party_id BIGINT GENERATED ALWAYS AS IDENTITY, -- Explicitly structured generation
+    party_id BIGINT GENERATED ALWAYS AS IDENTITY,
     type VARCHAR(15) NOT NULL CHECK (type IN ('individual', 'organization')),
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
@@ -67,10 +78,10 @@ CREATE TABLE Individual (
     nationality VARCHAR(65) NOT NULL,
     registration_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
     occupation VARCHAR(100) NULL, 
-    marital_status VARCHAR(15) NOT NULL CHECK (marital_status IN ('married', 'single', 'divorced', 'widowed', 'separated')), -- Fixed typos & unified options
+    marital_status VARCHAR(15) NOT NULL CHECK (marital_status IN ('married', 'single', 'divorced', 'widowed', 'separated')),
     disability BOOLEAN NOT NULL DEFAULT FALSE,
     disability_type VARCHAR(100) NULL,
-    disability_desc VARCHAR(150) NULL, -- Fixed typo
+    disability_desc VARCHAR(150) NULL,
     annual_income DECIMAL(15, 2) NOT NULL CHECK (annual_income >= 0), 
     employment_status VARCHAR(100) NOT NULL CHECK (employment_status IN ('employed', 'unemployed', 'self_employed', 'retired')),
     country_of_residence VARCHAR(100) NOT NULL, 
@@ -137,6 +148,61 @@ CREATE TABLE Account_ownership (
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
 );
+
+CREATE TABLE Bank_Transaction (
+    bank_id BIGINT NOT NULL,
+    transaction_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    journal_id BIGINT NULL,
+    reversal_of_transaction_id BIGINT NULL,
+    from_account_id BIGINT NULL, 
+    to_account_id BIGINT NULL,
+    initiated_by_party_id BIGINT NULL,
+    initiated_by_employee_id BIGINT NULL,
+    authorized_by_employee_id BIGINT NULL, 
+    amount DECIMAL(15, 2) NOT NULL CHECK (amount > 0),
+    currency_code CHAR(3) NOT NULL,
+    exchange_rate DECIMAL(18, 8) NOT NULL DEFAULT 1.00000000,
+    converted_amount DECIMAL(18, 8) NOT NULL,
+    fee_amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00 CHECK (fee_amount >= 0),
+    transaction_type VARCHAR(25) NOT NULL CHECK (transaction_type IN ('transfer_internal', 'transfer_external', 'deposit_cash', 'withdrawal_cash', 'fee_charge', 'interest_credit', 'interest_debit', 'loan_disbursement', 'card_purchase')),
+    status VARCHAR(15) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'authorized', 'completed', 'failed', 'reversed', 'cancelled', 'held_compliance')),
+    channel VARCHAR(15) NOT NULL CHECK (channel IN ('branch', 'atm', 'online_banking', 'mobile_app', 'pos_terminal', 'open_api', 'batch_system')),
+    authorization_code VARCHAR(20) NULL,
+    response_code CHAR(4) NULL, 
+    idempotency_key UUID NOT NULL,
+    mfa_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    aml_risk_score DECIMAL(5, 2) NULL CHECK (aml_risk_score BETWEEN 0 AND 100),
+    fraud_flagged BOOLEAN NOT NULL DEFAULT FALSE,
+    compliance_hold_reason VARCHAR(255) NULL,
+    value_date DATE NOT NULL, 
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    authorized_at TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    transaction_description VARCHAR(255) NULL,
+    payment_reference VARCHAR(100) NULL,
+    custom_metadata JSONB NULL,
+    PRIMARY KEY (bank_id, transaction_id),
+    FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, from_account_id) REFERENCES Account(bank_id, account_id),
+    FOREIGN KEY (bank_id, to_account_id) REFERENCES Account(bank_id, account_id),
+    FOREIGN KEY (bank_id, initiated_by_party_id) REFERENCES Party(bank_id, party_id),
+    FOREIGN KEY (bank_id, initiated_by_employee_id) REFERENCES Employee(bank_id, employee_id),
+    FOREIGN KEY (bank_id, authorized_by_employee_id) REFERENCES Employee(bank_id, employee_id),
+    FOREIGN KEY (bank_id, reversal_of_transaction_id) REFERENCES Bank_Transaction(bank_id, transaction_id) ON DELETE SET NULL,
+    CONSTRAINT uniq_bank_idempotency UNIQUE (bank_id, idempotency_key),
+    CONSTRAINT chk_at_least_one_account CHECK (from_account_id IS NOT NULL OR to_account_id IS NOT NULL),
+    CONSTRAINT chk_exclusive_initiator CHECK (
+        (initiated_by_party_id IS NULL AND initiated_by_employee_id IS NULL) OR 
+        (initiated_by_party_id IS NOT NULL AND initiated_by_employee_id IS NULL) OR 
+        (initiated_by_party_id IS NULL AND initiated_by_employee_id IS NOT NULL)),
+    CONSTRAINT chk_cannot_reverse_self CHECK (reversal_of_transaction_id IS NULL OR reversal_of_transaction_id <> transaction_id),
+    CONSTRAINT chk_account_directionality CHECK (
+        from_account_id IS NULL OR 
+        to_account_id IS NULL OR 
+        from_account_id <> to_account_id)
+);
+
 CREATE TABLE JournalEntry (
     bank_id BIGINT NOT NULL,
     journal_id BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -156,6 +222,9 @@ CREATE TABLE JournalEntry (
     FOREIGN KEY (bank_id, posted_by_employee_id) REFERENCES Employee(bank_id, employee_id)
 );
 
+-- Note: Moved below JournalEntry to allow references to compile smoothly without dependency loops
+ALTER TABLE Bank_Transaction ADD FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL;
+
 CREATE TABLE JournalLine (
     bank_id BIGINT NOT NULL,
     journal_id BIGINT NOT NULL,
@@ -170,9 +239,9 @@ CREATE TABLE JournalLine (
     PRIMARY KEY (bank_id, journal_id, line_id),
     FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id),
-    CONSTRAINT CHK_DEBIT CHECK (debit >= 0),
-    CONSTRAINT CHK_CREDIT CHECK (credit >= 0),
-    CONSTRAINT CHK_DEBIT_AND_CREDIT CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0))
+    CONSTRAINT chk_debit CHECK (debit >= 0),
+    CONSTRAINT chk_credit CHECK (credit >= 0),
+    CONSTRAINT chk_debit_and_credit CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0))
 );
 
 CREATE TABLE LoanApplication (
@@ -207,9 +276,9 @@ CREATE TABLE CreditAssessment (
     assessment_method VARCHAR(15) NOT NULL CHECK (assessment_method IN ('manual', 'automated', 'hybrid')),
     recommendation VARCHAR(15) NOT NULL CHECK (recommendation IN ('approve', 'reject', 'manual_review')),
     assessment_version VARCHAR(20) NOT NULL,
-    debt_to_income_ratio DECIMAL(5, 2) NULL CHECK (debt_to_income_ratio IS NULL OR debt_to_income_ratio >= 0),
-    annual_income_snapshot DECIMAL(15, 2) NULL CHECK (annual_income_snapshot IS NULL OR annual_income_snapshot >= 0),
-    monthly_expenses_snapshot DECIMAL(15, 2) NULL CHECK (monthly_expenses_snapshot IS NULL OR monthly_expenses_snapshot >= 0),
+    debt_to_income_ratio DECIMAL(5, 2) NULL CHECK (debt_to_income_ratio >= 0),
+    annual_income_snapshot DECIMAL(15, 2) NULL CHECK (annual_income_snapshot >= 0),
+    monthly_expenses_snapshot DECIMAL(15, 2) NULL CHECK (monthly_expenses_snapshot >= 0),
     comments TEXT NULL,
     assessed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NULL,
@@ -266,8 +335,8 @@ CREATE TABLE LoanPayment (
     CONSTRAINT uniq_bank_payment_reference UNIQUE (bank_id, payment_reference),
     CONSTRAINT chk_principal_component CHECK (principal_component >= 0),
     CONSTRAINT chk_interest_component CHECK (interest_component >= 0),
-    CONSTRAINT chk_late_fee CHECK (late_fee_component IS NULL OR late_fee_component >= 0),
-    CONSTRAINT chk_penalty_interest CHECK (penalty_interest_component IS NULL OR penalty_interest_component >= 0),
+    CONSTRAINT chk_late_fee CHECK (late_fee_component >= 0),
+    CONSTRAINT chk_penalty_interest CHECK (penalty_interest_component >= 0),
     CONSTRAINT chk_remaining_balance CHECK (remaining_balance_after_payment >= 0),
     CONSTRAINT chk_installment_number CHECK (installment_number > 0),
     CONSTRAINT chk_total_amount CHECK (
@@ -286,9 +355,10 @@ CREATE TABLE CardProduct (
     daily_atm_withdrawal_limit DECIMAL(15, 2) NULL DEFAULT 0 CHECK (daily_atm_withdrawal_limit >= 0),
     daily_purchase_limit DECIMAL(15, 2) NOT NULL CHECK (daily_purchase_limit >= 0),
     min_age SMALLINT NOT NULL CHECK (min_age >= 0),
-    min_cred_score SMALLINT NULL CHECK (min_cred_score IS NULL OR min_cred_score BETWEEN 300 AND 850),
+    min_cred_score SMALLINT NULL CHECK (min_cred_score BETWEEN 300 AND 850),
     annual_fee DECIMAL(15, 2) NOT NULL DEFAULT 0.00 CHECK (annual_fee >= 0), 
-    PRIMARY KEY (bank_id, card_product_id)
+    PRIMARY KEY (bank_id, card_product_id),
+    FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
 );
 
 CREATE TABLE Card (
@@ -304,8 +374,8 @@ CREATE TABLE Card (
     cardholder_name VARCHAR(100) NOT NULL,
     last_used_at TIMESTAMP NULL,
     pin_retry_count SMALLINT DEFAULT 0 CHECK (pin_retry_count BETWEEN 0 AND 3),
-    pin_last_changed_at TIMESTAMP NULL,              
-    replacement_reason VARCHAR(20) CHECK (replacement_reason IN ('expired', 'lost', 'stolen', 'damaged')), format
+    pin_last_changed_at TIMESTAMP NULL,             
+    replacement_reason VARCHAR(20) NULL CHECK (replacement_reason IN ('expired', 'lost', 'stolen', 'damaged')), -- Fixed: Removed trailing 'format' typo text
     PRIMARY KEY (bank_id, card_id),
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, card_product_id) REFERENCES CardProduct(bank_id, card_product_id),
@@ -426,7 +496,6 @@ CREATE TABLE AuditLog (
     FOREIGN KEY (bank_id, actor_employee_id) REFERENCES Employee(bank_id, employee_id) ON DELETE SET NULL,
     FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id)
 );
-
 CREATE INDEX idx_journal_timestamp ON JournalEntry (bank_id, entry_timestamp);
 CREATE INDEX idx_loan_app_status ON LoanApplication (bank_id, loan_application_status);
 CREATE INDEX idx_account_opened ON Account (bank_id, opened_at);
@@ -434,3 +503,11 @@ CREATE INDEX idx_audit_timestamp ON AuditLog (bank_id, logged_at);
 CREATE INDEX idx_audit_entity ON AuditLog (bank_id, entity_type, entity_id);
 CREATE INDEX idx_audit_employee ON AuditLog (bank_id, actor_employee_id);
 CREATE INDEX idx_audit_branch ON AuditLog (bank_id, branch_id);
+CREATE INDEX idx_emp_hr_status ON Employee (bank_id, employment_status);
+CREATE INDEX idx_emp_manager ON Employee (bank_id, manager_id) WHERE manager_id IS NOT NULL;
+CREATE INDEX idx_tx_created_at ON Bank_Transaction (bank_id, created_at);
+CREATE INDEX idx_tx_type_status ON Bank_Transaction (bank_id, transaction_type, status);
+CREATE INDEX idx_tx_from_acc ON Bank_Transaction (bank_id, from_account_id) WHERE from_account_id IS NOT NULL;
+CREATE INDEX idx_tx_to_acc ON Bank_Transaction (bank_id, to_account_id) WHERE to_account_id IS NOT NULL;
+CREATE INDEX idx_tx_fraud_compliance ON Bank_Transaction (bank_id, fraud_flagged, status);
+CREATE INDEX idx_tx_reversal_mapping ON Bank_Transaction (bank_id, reversal_of_transaction_id) WHERE reversal_of_transaction_id IS NOT NULL;
