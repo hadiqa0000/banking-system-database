@@ -1,11 +1,18 @@
 CREATE TABLE Bank(
 	bank_id BIGINT GENERATED ALWAYS AS IDENTITY,
 	legal_name VARCHAR(100) NOT NULL UNIQUE,
-	bic VARCHAR(11)  NOT NULL UNIQUE CHECK(LENGTH(swift_code) =11),
+	bic VARCHAR(11)  NOT NULL UNIQUE CHECK (LENGTH(bic) IN (8, 11)),
 	routing_no VARCHAR(9) NULL CHECK(LENGTH(routing_no)=9),
-	country VARCHAR(50) NOT NULL,
+	country_code CHAR(2) NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	status VARCHAR(20) NOT NULL  CHECK (status IN ('active','suspended','closed')),
+	headquarters_city VARCHAR(100) NOT NULL,
+	headquarters_address VARCHAR(255) NOT NULL,
+	license_number VARCHAR(50) NOT NULL,
+	PRIMARY KEY (bank_id)
 	
+
+
 );
 
 CREATE TABLE Branch(
@@ -14,6 +21,7 @@ CREATE TABLE Branch(
 	name VARCHAR(100) NOT NULL,
 	region VARCHAR(50) NOT NULL,
 	branch_addres VARCHAR(50) NOT NULL,
+	country_code CHAR(2) NOT NULL,
 	
 PRIMARY KEY (bank_id, branch_id), FOREIGN KEY(bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE, CONSTRAINT uniq_bank_branch_name UNIQUE(bank_id,name)
 );
@@ -281,6 +289,86 @@ CREATE TABLE JournalLine (
     CONSTRAINT CHK_DEBIT_AND_CREDIT CHECK((debit > 0 AND credit =0) OR (credit >0 AND debit=0))
     
 );
+
+CREATE TABLE Card (
+    bank_id BIGINT NOT NULL,
+    card_id BIGINT NOT NULL,
+    card_product_id BIGINT NOT NULL,
+    account_id BIGINT NOT NULL,
+    card_number VARCHAR(19) NOT NULL,
+    
+    expiry_date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending_activation','active','frozen','blocked','expired','cancelled','stolen','lost')),
+    issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    activated_at TIMESTAMP NULL,
+
+    cardholder_name VARCHAR(100) NOT NULL,
+    
+   
+    last_used_at TIMESTAMP  NULL,
+    pin_retry_count SMALLINT DEFAULT 0 CHECK(pin_retry_count BETWEEN 0 AND 3),
+    pin_last_changed_at TIMESTAMP NULL,        		
+    replacement_reason VARCHAR(20)CHECK(replacement_reason IN('expired','lost','stolen','damaged')),
+    
+    PRIMARY KEY (bank_id, card_id),
+    FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id) ON DELETE CASCADE,
+    CONSTRAINT uniq_bank_card_number UNIQUE (bank_id, card_number),
+    FOREIGN KEY (bank_id, card_product_id REFERENCES CardProduct(bank_id, card_product_id)
+);
+
+
+
+
+
+
+
+CREATE TABLE Cardproduct(
+bank_id BIGINT NOT NULL,
+card_product_id BIGINT NOT NULL,
+product_name VARCHAR(100) NOT NULL,
+
+card_type VARCHAR(15) NOT NULL CHECK (card_type IN ('debit', 'credit', 'prepaid', 'charge')),
+    card_segment VARCHAR(20) NOT NULL CHECK (card_segment IN ('consumer', 'business', 'corporate', 'private_banking')),
+ card_network VARCHAR(20)CHECK (card_network IN ('visa','mastercard','amex','unionpay','discover')),
+ 
+ supports_contactless BOOLEAN NOT NULL DEFAULT TRUE,
+ 
+  daily_atm_withdrawal_limit DECIMAL(15,2) NULL DEFAULT 0 CHECK(daily_atm_withdrawal_limit >=0),
+  
+ 
+    daily_purchase_limit DECIMAL(15,2) NOT NULL,
+   
+   min_age SMALLINT NOT NULL CHECK(min_age >=0),
+   min_cred_score SMALLINT NULL CHECK(min_cred_score IS NULL OR min_cred_score BETWEEN 300 AND 850),
+   annual_fee DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+   
+   PRIMARY KEY(bank_id, card_product_id)
+   
+   );
+
+
+CREATE TABLE CardApplication (
+    bank_id BIGINT NOT NULL,
+    account_id BIGINT NOT NULL,
+    application_id BIGINT NOT NULL, 
+    applicant_party_id BIGINT NOT NULL,
+    card_product_id BIGINT NOT NULL, 
+    application_status VARCHAR(20) NOT NULL CHECK (application_status IN ('pending','approved','rejected','cancelled')),
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP NULL,
+    reviewed_by_employee_id BIGINT NULL,
+    rejection_reason VARCHAR(500) NULL,
+    approved_card_id BIGINT NULL,
+    PRIMARY KEY (bank_id, application_id),
+    FOREIGN KEY (bank_id, applicant_party_id) REFERENCES Party(bank_id, party_id),
+    FOREIGN KEY (bank_id, card_product_id) REFERENCES CardProduct(bank_id, card_product_id),
+    FOREIGN KEY (bank_id, reviewed_by_employee_id) REFERENCES Employee(bank_id, employee_id),
+    FOREIGN KEY (bank_id, approved_card_id) REFERENCES Card(bank_id, card_id),
+    FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id,account_id),
+);
+
+
+
 CREATE TABLE ATM (
     bank_id BIGINT NOT NULL,
     atm_id BIGINT(15) NOT NULL,
@@ -317,8 +405,19 @@ CREATE TABLE ATMTransaction (
     
     amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
     response_code VARCHAR(4) NOT NULL DEFAULT '00',
+    transaction_status VARCHAR(20) NOT NULL DEFAULT 'completed' CHECK(transaction_status IN('pending', 'completed', 'failed', 'reversed', 'cancelled')),
+    
     executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     transaction_status VARCHAR(20) NOT NULL DEFAULT 'completed'CHECK (transaction_status IN ('pending','completed','failed','reversed','cancelled')),
+    
+    destination_acc_id BIGINT NULL, 
+    currency_code CHAR(3) NOT NULL,
+    balance_after_transaction DECIMAL(15,2) NULL,
+    fee_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    employee_id BIGINT NULL,
+    receipt_printed BOOLEAN NOT NULL DEFAULT FALSE,
+    authorization_status VARCHAR(15) CHECK(authorization_status IN('approved', 'declined', 'timeout')),
+    
     
     PRIMARY KEY (bank_id, transaction_id),
     FOREIGN KEY (bank_id, atm_id) REFERENCES ATM(bank_id, atm_id),
@@ -328,5 +427,62 @@ CREATE TABLE ATMTransaction (
     CONSTRAINT uniq_bank_atm_tx_journal UNIQUE (bank_id, journal_id)
 );
 
-CREATE INDEX idx_atm_tx_date ON ATMTransaction (bank_id, executed_at);
-CREATE INDEX idx_atm_tx_type ON ATMTransaction (bank_id, tx_type);
+
+CREATE TABLE AuditLog (
+    bank_id BIGINT NOT NULL,
+    branch_id BIGINT NULL,
+    audit_id BIGSERIAL, -- Auto-incrementing big integer for chronological logging
+    actor_type VARCHAR(20) NOT NULL CHECK (actor_type IN ('employee','system','api','scheduler')),
+    source VARCHAR(20) CHECK (source IN ('branch','atm','online','mobile','api','system')),
+    actor_employee_id BIGINT DEFAULT NULL,
+    action VARCHAR(10) NOT NULL CHECK (
+    action IN (
+        'INSERT',
+        'UPDATE',
+        'DELETE',
+        'LOGIN',
+        'LOGOUT',
+        'APPROVE',
+        'REJECT'
+    )
+)
+   entity_type VARCHAR(30) NOT NULL, CHECK (
+    entity_type IN (
+        'Account',
+        'Loan',
+        'Card',
+        'Customer',
+        'Branch',
+        'Employee',
+        'Transaction',
+        'ATM'
+    )
+),
+    entity_id BIGINT NOT NULL,
+    logged_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    before_state JSONB DEFAULT NULL, -- Intended to safely receive a stringified JSON snapshot
+    after_state JSONB DEFAULT NULL,  -- Intended to safely receive a stringified JSON snapshot
+    error_message VARCHAR(500) NULL,
+    session_id UUID NULL,
+    reason VARCHAR(255) NULL,
+    
+    success BOOLEAN NOT NULL DEFAULT TRUE,
+    PRIMARY KEY (bank_id, audit_id),
+    FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, actor_employee_id) REFERENCES Employee(bank_id, employee_id) ON DELETE SET NULL,
+    FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id)
+);
+
+
+CREATE INDEX idx_audit_timestamp
+ON AuditLog(bank_id, timestamp);
+
+CREATE INDEX idx_audit_entity
+ON AuditLog(bank_id, entity_type, entity_id);
+
+CREATE INDEX idx_audit_employee
+ON AuditLog(bank_id, actor_employee_id);
+
+CREATE INDEX idx_audit_branch
+ON AuditLog(bank_id, branch_id);
+
