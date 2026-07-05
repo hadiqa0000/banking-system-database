@@ -83,6 +83,42 @@ CREATE TABLE Individual (
     CONSTRAINT uniq_bank_national_id UNIQUE (bank_id, national_id)
 );
 
+CREATE TABLE Organization (
+    bank_id BIGINT NOT NULL,
+    party_id BIGINT NOT NULL,
+    legal_name VARCHAR(200) NOT NULL,
+    trading_name VARCHAR(200) NULL,
+    registration_number VARCHAR(50) NOT NULL,
+    tax_id VARCHAR(50) NOT NULL,
+    organization_type VARCHAR(30) NOT NULL CHECK (organization_type IN ('sole proprietorship','partnership', 'private limited','public limited','government','non-profit','bank','corporation')), 
+    industry VARCHAR(100) NULL,
+    incorporation_date DATE NOT NULL,
+
+    email VARCHAR(255) NULL,
+
+    phone_number VARCHAR(30) NULL,
+
+    website VARCHAR(255) NULL,
+
+    annual_revenue DECIMAL(18,2) NULL,
+
+    employee_count INT NULL
+        CHECK (employee_count >= 0),
+
+    PRIMARY KEY (bank_id, party_id),
+
+    FOREIGN KEY (bank_id, party_id)
+        REFERENCES Party(bank_id, party_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uniq_bank_registration
+        UNIQUE(bank_id, registration_number),
+
+    CONSTRAINT uniq_bank_tax_id
+        UNIQUE(bank_id, tax_id)
+
+);
+
 CREATE TABLE Account (
     bank_id BIGINT NOT NULL,
     account_id BIGINT NOT NULL,
