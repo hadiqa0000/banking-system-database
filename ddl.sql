@@ -8,6 +8,23 @@ INSERT INTO Country VALUES
 ('DE','Germany'), ('FR','France'), ('JP','Japan'), ('CN','China'),
 ('CA','Canada'), ('AU','Australia'), ('IN','India');
 
+CREATE TABLE Gender (
+    gender_name VARCHAR(50) PRIMARY KEY
+);
+INSERT INTO Gender VALUES
+('male'),
+('female'),
+('intersex'),
+('non-binary'),
+('unspecified'),
+('prefer not to say');
+
+
+
+
+
+
+
 CREATE TABLE Currency (
     currency_code CHAR(3) PRIMARY KEY,
     currency_name VARCHAR(50) NOT NULL,
@@ -189,24 +206,26 @@ CREATE TABLE Employee (
     bank_id BIGINT NOT NULL,
     employee_id BIGINT GENERATED ALWAYS AS IDENTITY,
     branch_id BIGINT NOT NULL,
+    employee_gender VARCHAR(50) NOT NULL,
     role_id BIGINT NOT NULL,
     manager_id BIGINT NULL, 
     employee_number VARCHAR(30) NOT NULL,
-    work_email VARCHAR(255) NOT NULL,
-    phone VARCHAR(30) NULL,
-    salary DECIMAL(12, 2) NOT NULL CHECK (salary >= 0),
-    hire_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    termination_date DATE NULL,
+    employee_work_email VARCHAR(255) NOT NULL,
+    employee_phone VARCHAR(30) NULL,
+    employee_salary DECIMAL(12, 2) NOT NULL CHECK (salary >= 0),
+    employee_hire_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    employee_termination_date DATE NULL,
     employment_status VARCHAR(20) NOT NULL DEFAULT 'active',
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    employee_is_active BOOLEAN NOT NULL DEFAULT TRUE,
     PRIMARY KEY (bank_id, employee_id), 
     FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id), 
     FOREIGN KEY (bank_id, role_id) REFERENCES Role(bank_id, role_id),
     FOREIGN KEY (bank_id, manager_id) REFERENCES Employee(bank_id, employee_id) ON DELETE SET NULL,
     CONSTRAINT uniq_bank_employee_number UNIQUE (bank_id, employee_number),
-    CONSTRAINT uniq_bank_employee_email UNIQUE (bank_id, work_email),
-    CONSTRAINT chk_termination_after_hire CHECK (termination_date IS NULL OR termination_date >= hire_date),
-    FOREIGN KEY (employment_status) REFERENCES EmploymentStatus(employment_status)
+    CONSTRAINT uniq_bank_employee_email UNIQUE (bank_id, employee_work_email),
+    CONSTRAINT chk_termination_after_hire CHECK (employee_termination_date IS NULL OR employee_termination_date >= employee_hire_date),
+    FOREIGN KEY (employment_status) REFERENCES EmploymentStatus(employment_status),
+    FOREIGN KEY (employee_gender) REFERENCES Gender(gender_name)
 );
 
 CREATE TABLE Party (
@@ -225,7 +244,7 @@ CREATE TABLE Individual (
     middle_name VARCHAR(100) NULL,
     dob DATE NOT NULL,
     national_id VARCHAR(20) NOT NULL,
-    gender VARCHAR(10) NOT NULL CHECK (gender IN ('male', 'female', 'intersex')),
+    individual_gender VARCHAR(10) NOT NULL,
     SSN VARCHAR(9) NULL,
     nationality VARCHAR(65) NOT NULL,
     registration_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
@@ -236,14 +255,16 @@ CREATE TABLE Individual (
     disability_desc VARCHAR(150) NULL,
     annual_income DECIMAL(15, 2) NOT NULL CHECK (annual_income >= 0), 
     employment_status VARCHAR(100) NOT NULL CHECK (employment_status IN ('employed', 'unemployed', 'self_employed', 'retired')),
-    country_of_residence VARCHAR(100) NOT NULL, 
+    country_of_residence CHAR(2) NOT NULL, 
     city_of_residence VARCHAR(100) NOT NULL,
     district_of_residence VARCHAR(100) NOT NULL,
     customer_status VARCHAR(15) NOT NULL CHECK (customer_status IN ('active', 'inactive', 'blacklisted')),
     deceased_flag BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
-    CONSTRAINT uniq_bank_national_id UNIQUE (bank_id, national_id)
+    CONSTRAINT uniq_bank_national_id UNIQUE (bank_id, national_id),
+    FOREIGN KEY (country_of_residence) REFERENCES Country(country_code),
+    FOREIGN KEY (individual_gender) REFERENCES Gender(gender_name)
 );
 
 CREATE TABLE Organization (
@@ -253,7 +274,7 @@ CREATE TABLE Organization (
     trading_name VARCHAR(200) NULL,
     registration_number VARCHAR(50) NOT NULL,
     tax_id VARCHAR(50) NOT NULL,
-    organization_type VARCHAR(40) NOT NULL, -- Matched precision with Org table string lengths
+    organization_type VARCHAR(40) NOT NULL,
     industry VARCHAR(100) NULL,
     incorporation_date DATE NOT NULL,
     email VARCHAR(255) NULL,
@@ -274,6 +295,8 @@ CREATE TABLE Account (
     branch_id BIGINT NOT NULL,
     currency_code CHAR(3) NOT NULL,
     account_number VARCHAR(34) NOT NULL,
+    current_balance DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+    available_balance DECIMAL(18,2) NOT NULL DEFAULT 0.00,
     account_status VARCHAR(20) NOT NULL,
     account_type VARCHAR(30) NOT NULL,
     opened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -379,7 +402,9 @@ CREATE TABLE Bank_Transaction (
         from_account_id <> to_account_id),
     FOREIGN KEY (transaction_type) REFERENCES TransactionType(transaction_type_name),
     FOREIGN KEY (transaction_status) REFERENCES TransactionStatus(status_name),
-    FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL
+    FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL,
+    FOREIGN KEY (currency_code)
+REFERENCES Currency(currency_code)
 );
 
 CREATE TABLE JournalLine (
@@ -529,6 +554,7 @@ CREATE TABLE Card (
     card_product_id BIGINT NOT NULL,
     account_id BIGINT NOT NULL,
     card_number VARCHAR(19) NOT NULL,
+    card_token_id UUID NOT NULL UNIQUE,
     card_expiry_date DATE NOT NULL,
     card_status VARCHAR(20) NOT NULL,
     card_issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -612,7 +638,8 @@ CREATE TABLE ATMTransaction (
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id),
     FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL,
     CONSTRAINT uniq_bank_atm_tx_journal UNIQUE (bank_id, journal_id),
-    FOREIGN KEY (transaction_status) REFERENCES TransactionStatus(status_name) -- Variable Mapping Fixed
+    FOREIGN KEY (transaction_status) REFERENCES TransactionStatus(status_name),
+    FOREIGN KEY (bank_id, employee_id) REFERENCES Employee(bank_id, employee_id)
 );
 
 CREATE TABLE Locker (
