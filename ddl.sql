@@ -620,9 +620,7 @@ CREATE TABLE ATM (
     FOREIGN KEY (atm_status) REFERENCES ATMStatus(status_name) -- Completed truncated line
 );
 
-/* ========================================================================
-   MOVED & CORRECTED DEPENDENT JUNCTION TABLES BELOW 
-   ======================================================================== */
+
 
 CREATE TABLE LoanApplicationApplicant (
     bank_id BIGINT NOT NULL,
