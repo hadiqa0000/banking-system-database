@@ -1,9 +1,23 @@
+
 CREATE TABLE Country (
     country_code CHAR(2) PRIMARY KEY,
     country_name VARCHAR(100) NOT NULL UNIQUE
 );
 
-INSERT INTO Country VALUES
+INSERT INTO Country VALUESvoid initialize_array(double *arr) {
+    double init_vals[ARRAY_SIZE] = {
+        12.5, 23.7, 45.2, 67.8, 89.1,
+        34.6, 56.3, 78.9, 91.2, 15.4,
+        27.9, 48.5, 73.1, 84.6, 95.3,
+        19.2, 38.7, 62.4, 77.5, 88.0,
+        42.1, 53.8, 69.3, 81.7, 94.2,
+        5.9, 31.6, 59.4, 71.8, 86.5
+    };
+
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+        arr[i] = init_vals[i];
+    }
+}
 ('US','United States'), ('GB','United Kingdom'), ('TR','Turkey'),
 ('DE','Germany'), ('FR','France'), ('JP','Japan'), ('CN','China'),
 ('CA','Canada'), ('AU','Australia'), ('IN','India');
@@ -20,6 +34,9 @@ INSERT INTO Gender VALUES
 ('prefer not to say');
 
 
+--locker application, locker ownership because lockers are shared too
+--people can also have shared loans so i have implement that too
+--shared credit card is just two poeple's credit card linking to the same account 
 
 
 
@@ -164,6 +181,26 @@ CREATE TABLE AuditSource (
 );
 INSERT INTO AuditSource VALUES ('web'), ('mobile'), ('atm'), ('system_core');
 
+CREATE TABLE LockerAccessRole (
+    role_name VARCHAR(20) PRIMARY KEY,
+    description VARCHAR(100)
+);
+
+INSERT INTO LockerAccessRole VALUES 
+('primary', 'Main leaseholder responsible for billing and ultimate access control'),
+('co-renter', 'Joint leaseholder with full access rights to the physical locker'),
+('authorized_visitor', 'Allowed physical access under supervision, cannot alter lease terms');
+
+CREATE TABLE BorrowerRole (
+    role_name VARCHAR(20) PRIMARY KEY,
+    description VARCHAR(100)
+);
+
+INSERT INTO BorrowerRole VALUES 
+('primary', 'Main borrower whose income is primarily used for underwriting'),
+('co-borrower', 'Joint borrower equally responsible for monthly payments'),
+('guarantor', 'Provides a payment guarantee; only legally liable upon default of primaries');
+
 CREATE TABLE Bank (
     bank_id BIGINT GENERATED ALWAYS AS IDENTITY,
     legal_name VARCHAR(100) NOT NULL UNIQUE,
@@ -288,6 +325,7 @@ CREATE TABLE Organization (
     CONSTRAINT uniq_bank_tax_id UNIQUE (bank_id, tax_id),
     FOREIGN KEY (organization_type) REFERENCES OrganizationType(organization_type_name)
 );
+
 
 CREATE TABLE Account (
     bank_id BIGINT NOT NULL,
@@ -425,6 +463,43 @@ CREATE TABLE JournalLine (
     CONSTRAINT chk_credit CHECK (credit >= 0),
     CONSTRAINT chk_debit_and_credit CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0)),
     FOREIGN KEY (currency_code) REFERENCES Currency(currency_code)
+);
+
+CREATE TABLE LoanApplicationApplicant (
+    bank_id BIGINT NOT NULL,
+    application_id BIGINT NOT NULL,
+    party_id BIGINT NOT NULL,
+    applicant_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
+    credit_score_snapshot INT NULL,                        
+    declared_monthly_income DECIMAL(15, 2) NOT NULL CHECK (declared_monthly_income >= 0),
+    PRIMARY KEY (bank_id, application_id, party_id),
+    FOREIGN KEY (bank_id, application_id) REFERENCES LoanApplication(bank_id, application_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
+);
+
+CREATE TABLE LoanBorrower (
+    bank_id BIGINT NOT NULL,
+    loan_id BIGINT NOT NULL,
+    party_id BIGINT NOT NULL,
+    borrower_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
+    liability_pct DECIMAL(5, 2) NOT NULL DEFAULT 100.00 CHECK (liability_pct BETWEEN 0 AND 100), 
+    is_signed_agreement BOOLEAN NOT NULL DEFAULT TRUE,     
+    PRIMARY KEY (bank_id, loan_id, party_id),
+    FOREIGN KEY (bank_id, loan_id) REFERENCES Loan(bank_id, loan_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
+    FOREIGN KEY (borrower_role) REFERENCES BorrowerRole(role_name)
+);
+
+CREATE TABLE LoanBorrower (
+    bank_id BIGINT NOT NULL,
+    loan_id BIGINT NOT NULL,
+    party_id BIGINT NOT NULL,
+    borrower_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
+    liability_pct DECIMAL(5, 2) NOT NULL DEFAULT 100.00 CHECK (liability_pct BETWEEN 0 AND 100), 
+    is_signed_agreement BOOLEAN NOT NULL DEFAULT TRUE,     
+    PRIMARY KEY (bank_id, loan_id, party_id),
+    FOREIGN KEY (bank_id, loan_id) REFERENCES Loan(bank_id, loan_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
 );
 
 CREATE TABLE LoanApplication (
@@ -640,6 +715,47 @@ CREATE TABLE ATMTransaction (
     CONSTRAINT uniq_bank_atm_tx_journal UNIQUE (bank_id, journal_id),
     FOREIGN KEY (transaction_status) REFERENCES TransactionStatus(status_name),
     FOREIGN KEY (bank_id, employee_id) REFERENCES Employee(bank_id, employee_id)
+);
+
+
+CREATE TABLE LockerApplication (
+    bank_id BIGINT NOT NULL,
+    application_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    branch_id BIGINT NOT NULL,
+    requested_size VARCHAR(10) NOT NULL,
+    purpose_of_use VARCHAR(255) NULL,                      -- e.g., "Corporate Document Storage", "Family Valuables"
+    application_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP NULL,
+    reviewed_by_employee_id BIGINT NULL,
+    PRIMARY KEY (bank_id, application_id),
+    FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id),
+    FOREIGN KEY (requested_size) REFERENCES LockerSize(size_name)
+);
+CREATE TABLE LockerOwnership (
+    bank_id BIGINT NOT NULL,
+    locker_id BIGINT NOT NULL,
+    party_id BIGINT NOT NULL,
+    access_role VARCHAR(20) NOT NULL DEFAULT 'primary',    -- 'primary', 'co-renter', 'authorized_visitor'
+    leased_from DATE NOT NULL DEFAULT CURRENT_DATE,         -- Moved from Locker table
+    leased_until DATE NULL,                                 -- Moved from Locker table
+    keys_assigned INT NOT NULL DEFAULT 1 CHECK (keys_assigned >= 0), -- Tracks exactly who holds which key copies
+    ownership_status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (ownership_status IN ('active', 'suspended', 'revoked')),
+    PRIMARY KEY (bank_id, locker_id, party_id),
+    FOREIGN KEY (bank_id, locker_id) REFERENCES Locker(bank_id, locker_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
+    FOREIGN KEY (access_role) REFERENCES LockerAccessRole(role_name)
+);
+
+CREATE TABLE LockerApplicationApplicant (
+    bank_id BIGINT NOT NULL,
+    application_id BIGINT NOT NULL,
+    party_id BIGINT NOT NULL,
+    is_primary_applicant BOOLEAN NOT NULL DEFAULT FALSE,   -- Identifies who receives the primary communications/bills
+    signature_verified BOOLEAN NOT NULL DEFAULT FALSE,     -- Ensures all joint parties physically/digitally signed the terms
+    PRIMARY KEY (bank_id, application_id, party_id),
+    FOREIGN KEY (bank_id, application_id) REFERENCES LockerApplication(bank_id, application_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
 );
 
 CREATE TABLE Locker (
