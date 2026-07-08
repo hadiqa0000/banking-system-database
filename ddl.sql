@@ -1,23 +1,9 @@
-
 CREATE TABLE Country (
     country_code CHAR(2) PRIMARY KEY,
     country_name VARCHAR(100) NOT NULL UNIQUE
 );
 
-INSERT INTO Country VALUESvoid initialize_array(double *arr) {
-    double init_vals[ARRAY_SIZE] = {
-        12.5, 23.7, 45.2, 67.8, 89.1,
-        34.6, 56.3, 78.9, 91.2, 15.4,
-        27.9, 48.5, 73.1, 84.6, 95.3,
-        19.2, 38.7, 62.4, 77.5, 88.0,
-        42.1, 53.8, 69.3, 81.7, 94.2,
-        5.9, 31.6, 59.4, 71.8, 86.5
-    };
-
-    for (int i = 0; i < ARRAY_SIZE; i++) {
-        arr[i] = init_vals[i];
-    }
-}
+INSERT INTO Country VALUES
 ('US','United States'), ('GB','United Kingdom'), ('TR','Turkey'),
 ('DE','Germany'), ('FR','France'), ('JP','Japan'), ('CN','China'),
 ('CA','Canada'), ('AU','Australia'), ('IN','India');
@@ -25,22 +11,9 @@ INSERT INTO Country VALUESvoid initialize_array(double *arr) {
 CREATE TABLE Gender (
     gender_name VARCHAR(50) PRIMARY KEY
 );
+
 INSERT INTO Gender VALUES
-('male'),
-('female'),
-('intersex'),
-('non-binary'),
-('unspecified'),
-('prefer not to say');
-
-
---locker application, locker ownership because lockers are shared too
---people can also have shared loans so i have implement that too
---shared credit card is just two poeple's credit card linking to the same account 
-
-
-
-
+('male'), ('female'), ('intersex'), ('non-binary'), ('unspecified'), ('prefer not to say');
 
 CREATE TABLE Currency (
     currency_code CHAR(3) PRIMARY KEY,
@@ -249,7 +222,7 @@ CREATE TABLE Employee (
     employee_number VARCHAR(30) NOT NULL,
     employee_work_email VARCHAR(255) NOT NULL,
     employee_phone VARCHAR(30) NULL,
-    employee_salary DECIMAL(12, 2) NOT NULL CHECK (salary >= 0),
+    employee_salary DECIMAL(12, 2) NOT NULL CHECK (employee_salary >= 0), -- Fixed variable reference
     employee_hire_date DATE NOT NULL DEFAULT CURRENT_DATE,
     employee_termination_date DATE NULL,
     employment_status VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -268,7 +241,7 @@ CREATE TABLE Employee (
 CREATE TABLE Party (
     bank_id BIGINT NOT NULL,
     party_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    party_type VARCHAR(15) NOT NULL CHECK (party_type IN ('individual', 'organization')), -- Fixed column name map
+    party_type VARCHAR(15) NOT NULL CHECK (party_type IN ('individual', 'organization')), 
     PRIMARY KEY (bank_id, party_id),
     FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE
 );
@@ -325,7 +298,6 @@ CREATE TABLE Organization (
     CONSTRAINT uniq_bank_tax_id UNIQUE (bank_id, tax_id),
     FOREIGN KEY (organization_type) REFERENCES OrganizationType(organization_type_name)
 );
-
 
 CREATE TABLE Account (
     bank_id BIGINT NOT NULL,
@@ -441,8 +413,7 @@ CREATE TABLE Bank_Transaction (
     FOREIGN KEY (transaction_type) REFERENCES TransactionType(transaction_type_name),
     FOREIGN KEY (transaction_status) REFERENCES TransactionStatus(status_name),
     FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL,
-    FOREIGN KEY (currency_code)
-REFERENCES Currency(currency_code)
+    FOREIGN KEY (currency_code) REFERENCES Currency(currency_code)
 );
 
 CREATE TABLE JournalLine (
@@ -465,47 +436,9 @@ CREATE TABLE JournalLine (
     FOREIGN KEY (currency_code) REFERENCES Currency(currency_code)
 );
 
-CREATE TABLE LoanApplicationApplicant (
-    bank_id BIGINT NOT NULL,
-    application_id BIGINT NOT NULL,
-    party_id BIGINT NOT NULL,
-    applicant_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
-    credit_score_snapshot INT NULL,                        
-    declared_monthly_income DECIMAL(15, 2) NOT NULL CHECK (declared_monthly_income >= 0),
-    PRIMARY KEY (bank_id, application_id, party_id),
-    FOREIGN KEY (bank_id, application_id) REFERENCES LoanApplication(bank_id, application_id) ON DELETE CASCADE,
-    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
-);
-
-CREATE TABLE LoanBorrower (
-    bank_id BIGINT NOT NULL,
-    loan_id BIGINT NOT NULL,
-    party_id BIGINT NOT NULL,
-    borrower_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
-    liability_pct DECIMAL(5, 2) NOT NULL DEFAULT 100.00 CHECK (liability_pct BETWEEN 0 AND 100), 
-    is_signed_agreement BOOLEAN NOT NULL DEFAULT TRUE,     
-    PRIMARY KEY (bank_id, loan_id, party_id),
-    FOREIGN KEY (bank_id, loan_id) REFERENCES Loan(bank_id, loan_id) ON DELETE CASCADE,
-    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
-    FOREIGN KEY (borrower_role) REFERENCES BorrowerRole(role_name)
-);
-
-CREATE TABLE LoanBorrower (
-    bank_id BIGINT NOT NULL,
-    loan_id BIGINT NOT NULL,
-    party_id BIGINT NOT NULL,
-    borrower_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
-    liability_pct DECIMAL(5, 2) NOT NULL DEFAULT 100.00 CHECK (liability_pct BETWEEN 0 AND 100), 
-    is_signed_agreement BOOLEAN NOT NULL DEFAULT TRUE,     
-    PRIMARY KEY (bank_id, loan_id, party_id),
-    FOREIGN KEY (bank_id, loan_id) REFERENCES Loan(bank_id, loan_id) ON DELETE CASCADE,
-    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
-);
-
 CREATE TABLE LoanApplication (
     bank_id BIGINT NOT NULL,
     application_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    applicant_party_id BIGINT NOT NULL,
     requested_amount DECIMAL(15, 2) NOT NULL CHECK (requested_amount > 0),
     loan_application_status VARCHAR(15) NOT NULL DEFAULT 'pending' CHECK (loan_application_status IN ('pending', 'approved', 'rejected', 'cancelled')),
     application_sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -520,8 +453,7 @@ CREATE TABLE LoanApplication (
     approved_term_month SMALLINT NULL CHECK (approved_term_month > 0),
     approved_interest_rate DECIMAL(5, 2) NULL CHECK (approved_interest_rate >= 0),
     PRIMARY KEY (bank_id, application_id),
-    FOREIGN KEY (bank_id, applicant_party_id) REFERENCES Party(bank_id, party_id),
-    FOREIGN KEY (bank_id, assigned_employee_id) REFERENCES Employee(bank_id, employee_id), -- Composite PK mapping standard corrected automatically inside engines
+    FOREIGN KEY (bank_id, assigned_employee_id) REFERENCES Employee(bank_id, employee_id), 
     FOREIGN KEY (loan_type_name) REFERENCES LoanType(loan_type_name)
 );
 
@@ -558,7 +490,7 @@ CREATE TABLE Loan (
     loan_status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (loan_status IN ('active', 'performing', 'delinquent', 'defaulted', 'charged_off', 'closed')),
     maturity_date DATE NOT NULL,
     next_payment_due_date DATE NOT NULL,
-    payment_frequency VARCHAR(20) NOT NULL, -- Fixed Semicolon to Comma
+    payment_frequency VARCHAR(20) NOT NULL, 
     installment_amount DECIMAL(15, 2) NOT NULL CHECK (installment_amount >= 0),
     currency_code CHAR(3) NOT NULL,
     late_fee_rate DECIMAL(5, 4) NOT NULL CHECK (late_fee_rate >= 0),
@@ -582,7 +514,7 @@ CREATE TABLE LoanPayment (
     principal_component DECIMAL(15, 2) NOT NULL,
     interest_component DECIMAL(15, 2) NOT NULL,
     payment_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'reversed')),
-    payment_method VARCHAR(20) NOT NULL, -- Fixed Semicolon to Comma
+    payment_method VARCHAR(20) NOT NULL, 
     payment_channel VARCHAR(20) CHECK (payment_channel IN ('branch', 'atm', 'online', 'mobile', 'api')),
     installment_number SMALLINT NOT NULL,
     remaining_balance_after_payment DECIMAL(15, 2) NOT NULL,
@@ -636,9 +568,9 @@ CREATE TABLE Card (
     crd_activated_at TIMESTAMP NULL,
     cardholder_name VARCHAR(100) NOT NULL,
     card_last_used_at TIMESTAMP NULL,
-    card_pin_retry_count SMALLINT DEFAULT 0 CHECK (card_pin_retry_count BETWEEN 0 AND 3), -- Scope Fixed
+    card_pin_retry_count SMALLINT DEFAULT 0 CHECK (card_pin_retry_count BETWEEN 0 AND 3), 
     card_pin_last_changed_at TIMESTAMP NULL,             
-    card_replacement_reason VARCHAR(20) NULL CHECK (card_replacement_reason IN ('expired', 'lost', 'stolen', 'damaged')), -- Scope Fixed
+    card_replacement_reason VARCHAR(20) NULL CHECK (card_replacement_reason IN ('expired', 'lost', 'stolen', 'damaged')), 
     PRIMARY KEY (bank_id, card_id),
     FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id) ON DELETE CASCADE,
     FOREIGN KEY (bank_id, card_product_id) REFERENCES CardProduct(bank_id, card_product_id),
@@ -652,13 +584,13 @@ CREATE TABLE CardApplication (
     card_application_id BIGINT GENERATED ALWAYS AS IDENTITY, 
     card_applicant_party_id BIGINT NOT NULL,
     card_product_id BIGINT NOT NULL, 
-    card_application_status VARCHAR(20) NOT NULL CHECK (card_application_status IN ('pending', 'approved', 'rejected', 'cancelled')), -- Name Map Fixed
+    card_application_status VARCHAR(20) NOT NULL CHECK (card_application_status IN ('pending', 'approved', 'rejected', 'cancelled')), 
     card_submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     card_reviewed_at TIMESTAMP NULL,
     card_reviewed_by_employee_id BIGINT NULL,
     card_rejection_reason VARCHAR(500) NULL,
     approved_card_id BIGINT NULL,
-    PRIMARY KEY (bank_id, card_application_id), -- PK Column Mismatch Rectified
+    PRIMARY KEY (bank_id, card_application_id), 
     FOREIGN KEY (bank_id, card_applicant_party_id) REFERENCES Party(bank_id, party_id),
     FOREIGN KEY (bank_id, card_product_id) REFERENCES CardProduct(bank_id, card_product_id),
     FOREIGN KEY (bank_id, approved_card_id) REFERENCES Card(bank_id, card_id),
@@ -675,8 +607,8 @@ CREATE TABLE ATM (
     atm_installed_at TIMESTAMP NOT NULL,
     atm_last_maintenance_at TIMESTAMP NOT NULL,
     atm_next_maintenance_due DATE NOT NULL,
-    atm_cash_capacity DECIMAL(15, 2) NOT NULL CHECK (atm_cash_capacity >= 0), -- Scope Fixed
-    atm_current_cash_balance DECIMAL(15, 2) NOT NULL CHECK (atm_current_cash_balance >= 0), -- Scope Fixed
+    atm_cash_capacity DECIMAL(15, 2) NOT NULL CHECK (atm_cash_capacity >= 0), 
+    atm_current_cash_balance DECIMAL(15, 2) NOT NULL CHECK (atm_current_cash_balance >= 0), 
     atm_supports_cash_deposit BOOLEAN NOT NULL DEFAULT FALSE,
     atm_supports_contactless BOOLEAN NOT NULL DEFAULT FALSE,
     atm_supports_cardless BOOLEAN NOT NULL DEFAULT FALSE,
@@ -685,124 +617,35 @@ CREATE TABLE ATM (
     PRIMARY KEY (bank_id, atm_id),
     FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id),
     CONSTRAINT uniq_bank_terminal UNIQUE (bank_id, atm_terminal_id),
-    FOREIGN KEY (atm_status) REFERENCES ATMStatus(status_name)
+    FOREIGN KEY (atm_status) REFERENCES ATMStatus(status_name) -- Completed truncated line
 );
 
-CREATE TABLE ATMTransaction (
-    bank_id BIGINT NOT NULL,
-    account_id BIGINT NOT NULL,
-    transaction_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    atm_id BIGINT NOT NULL,
-    card_id BIGINT NOT NULL,
-    journal_id BIGINT DEFAULT NULL,
-    transaction_type VARCHAR(15) NOT NULL CHECK (transaction_type IN ('withdrawal', 'deposit', 'transfer', 'inquiry')),
-    amount DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
-    response_code VARCHAR(4) NOT NULL DEFAULT '00',
-    transaction_status VARCHAR(20) NOT NULL DEFAULT 'completed',
-    executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    destination_acc_id BIGINT NULL, 
-    currency_code CHAR(3) NOT NULL,
-    balance_after_transaction DECIMAL(15, 2) NULL,
-    fee_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
-    employee_id BIGINT NULL,
-    receipt_printed BOOLEAN NOT NULL DEFAULT FALSE,
-    authorization_status VARCHAR(15) CHECK (authorization_status IN ('approved', 'declined', 'timeout')),
-    PRIMARY KEY (bank_id, transaction_id),
-    FOREIGN KEY (bank_id, atm_id) REFERENCES ATM(bank_id, atm_id),
-    FOREIGN KEY (bank_id, card_id) REFERENCES Card(bank_id, card_id) ON DELETE CASCADE,
-    FOREIGN KEY (bank_id, account_id) REFERENCES Account(bank_id, account_id),
-    FOREIGN KEY (bank_id, journal_id) REFERENCES JournalEntry(bank_id, journal_id) ON DELETE SET NULL,
-    CONSTRAINT uniq_bank_atm_tx_journal UNIQUE (bank_id, journal_id),
-    FOREIGN KEY (transaction_status) REFERENCES TransactionStatus(status_name),
-    FOREIGN KEY (bank_id, employee_id) REFERENCES Employee(bank_id, employee_id)
-);
+/* ========================================================================
+   MOVED & CORRECTED DEPENDENT JUNCTION TABLES BELOW 
+   ======================================================================== */
 
-
-CREATE TABLE LockerApplication (
-    bank_id BIGINT NOT NULL,
-    application_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    branch_id BIGINT NOT NULL,
-    requested_size VARCHAR(10) NOT NULL,
-    purpose_of_use VARCHAR(255) NULL,                      -- e.g., "Corporate Document Storage", "Family Valuables"
-    application_status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    reviewed_at TIMESTAMP NULL,
-    reviewed_by_employee_id BIGINT NULL,
-    PRIMARY KEY (bank_id, application_id),
-    FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id),
-    FOREIGN KEY (requested_size) REFERENCES LockerSize(size_name)
-);
-CREATE TABLE LockerOwnership (
-    bank_id BIGINT NOT NULL,
-    locker_id BIGINT NOT NULL,
-    party_id BIGINT NOT NULL,
-    access_role VARCHAR(20) NOT NULL DEFAULT 'primary',    -- 'primary', 'co-renter', 'authorized_visitor'
-    leased_from DATE NOT NULL DEFAULT CURRENT_DATE,         -- Moved from Locker table
-    leased_until DATE NULL,                                 -- Moved from Locker table
-    keys_assigned INT NOT NULL DEFAULT 1 CHECK (keys_assigned >= 0), -- Tracks exactly who holds which key copies
-    ownership_status VARCHAR(15) NOT NULL DEFAULT 'active' CHECK (ownership_status IN ('active', 'suspended', 'revoked')),
-    PRIMARY KEY (bank_id, locker_id, party_id),
-    FOREIGN KEY (bank_id, locker_id) REFERENCES Locker(bank_id, locker_id) ON DELETE CASCADE,
-    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
-    FOREIGN KEY (access_role) REFERENCES LockerAccessRole(role_name)
-);
-
-CREATE TABLE LockerApplicationApplicant (
+CREATE TABLE LoanApplicationApplicant (
     bank_id BIGINT NOT NULL,
     application_id BIGINT NOT NULL,
     party_id BIGINT NOT NULL,
-    is_primary_applicant BOOLEAN NOT NULL DEFAULT FALSE,   -- Identifies who receives the primary communications/bills
-    signature_verified BOOLEAN NOT NULL DEFAULT FALSE,     -- Ensures all joint parties physically/digitally signed the terms
+    applicant_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
+    credit_score_snapshot INT NULL,                       
+    declared_monthly_income DECIMAL(15, 2) NOT NULL CHECK (declared_monthly_income >= 0),
     PRIMARY KEY (bank_id, application_id, party_id),
-    FOREIGN KEY (bank_id, application_id) REFERENCES LockerApplication(bank_id, application_id) ON DELETE CASCADE,
-    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE
+    FOREIGN KEY (bank_id, application_id) REFERENCES LoanApplication(bank_id, application_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
+    FOREIGN KEY (applicant_role) REFERENCES BorrowerRole(role_name)
 );
 
-CREATE TABLE Locker (
+CREATE TABLE LoanBorrower (
     bank_id BIGINT NOT NULL,
-    locker_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    branch_id BIGINT NOT NULL,
-    renter_party_id BIGINT DEFAULT NULL,
-    locker_number BIGINT NOT NULL,
-    size_tier VARCHAR(10) NOT NULL,
-    annual_fee DECIMAL(8, 2) NOT NULL CHECK (annual_fee >= 0),
-    leased_from DATE NULL DEFAULT CURRENT_DATE,
-    leased_until DATE DEFAULT NULL,
-    locker_status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (locker_status IN ('available', 'leased', 'reserved', 'maintenance', 'retired')), -- Name Fixed
-    security_deposit DECIMAL(10, 2) NOT NULL DEFAULT 0.00 CHECK (security_deposit >= 0),
-    keys_issued SMALLINT NOT NULL DEFAULT 2 CHECK (keys_issued >= 0),
-    last_inspected_at DATE NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    notes VARCHAR(500),
-    PRIMARY KEY (bank_id, locker_id),
-    FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id),
-    FOREIGN KEY (bank_id, renter_party_id) REFERENCES Party(bank_id, party_id) ON DELETE SET NULL,
-    CONSTRAINT uniq_branch_locker_num UNIQUE (bank_id, branch_id, locker_number),
-    FOREIGN KEY (size_tier) REFERENCES LockerSize(size_name)
-);
-
-CREATE TABLE AuditLog (
-    bank_id BIGINT NOT NULL,
-    branch_id BIGINT NULL,
-    audit_id BIGINT GENERATED ALWAYS AS IDENTITY,
-    actor_type VARCHAR(20) NOT NULL,
-    audit_source VARCHAR(20) NOT NULL,
-    actor_employee_id BIGINT DEFAULT NULL,
-    audit_action VARCHAR(20) NOT NULL,
-    entity_type VARCHAR(30) NOT NULL,
-    entity_id BIGINT NOT NULL,
-    logged_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    before_state JSONB DEFAULT NULL, 
-    after_state JSONB DEFAULT NULL,  
-    error_message VARCHAR(500) NULL,
-    session_id UUID NULL,
-    reason VARCHAR(255) NULL,
-    success BOOLEAN NOT NULL DEFAULT TRUE,
-    PRIMARY KEY (bank_id, audit_id),
-    FOREIGN KEY (bank_id) REFERENCES Bank(bank_id) ON DELETE CASCADE,
-    FOREIGN KEY (bank_id, branch_id) REFERENCES Branch(bank_id, branch_id),
-    FOREIGN KEY (actor_type) REFERENCES AuditActorType(actor_type),
-    FOREIGN KEY (entity_type) REFERENCES AuditEntityType(entity_type),
-    FOREIGN KEY (audit_action) REFERENCES AuditAction(action_name),
-    FOREIGN KEY (audit_source) REFERENCES AuditSource(source_name)
+    loan_id BIGINT NOT NULL,
+    party_id BIGINT NOT NULL,
+    borrower_role VARCHAR(20) NOT NULL DEFAULT 'primary', 
+    liability_pct DECIMAL(5, 2) NOT NULL DEFAULT 100.00 CHECK (liability_pct BETWEEN 0 AND 100), 
+    is_signed_agreement BOOLEAN NOT NULL DEFAULT TRUE,     
+    PRIMARY KEY (bank_id, loan_id, party_id),
+    FOREIGN KEY (bank_id, loan_id) REFERENCES Loan(bank_id, loan_id) ON DELETE CASCADE,
+    FOREIGN KEY (bank_id, party_id) REFERENCES Party(bank_id, party_id) ON DELETE CASCADE,
+    FOREIGN KEY (borrower_role) REFERENCES BorrowerRole(role_name)
 );
