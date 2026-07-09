@@ -46,6 +46,26 @@ class Branch:
 
 # --- RESOLVED GEOGRAPHIC MATRIX ---
 # Maps an anchor city to its ISO state/province, plus realistic neighboring and far target cities
+
+
+FOREIGN_CORRIDOR_WEIGHTS = {
+    'US': {
+        'targets': ['CA', 'DE', 'GB', 'TR'], 
+        'weights': [0.60, 0.15, 0.20, 0.05]  
+    },
+    'DE': {
+        'targets': ['GB', 'US', 'TR'],        # In a full dataset, this would include FR, CH, NL, BE
+        'weights': [0.50, 0.35, 0.15]  
+    },
+    'GB': {
+        'targets': ['US', 'DE', 'TR'],
+        'weights': [0.45, 0.45, 0.10]   
+    },
+    'TR': {
+        'targets': ['DE', 'GB', 'US'],
+        'weights': [0.55, 0.25, 0.20]   
+    }
+}
 CITY_CLUSTER_RULES = {
     'US': {
         'anchors': {
@@ -264,21 +284,28 @@ def export_branches_to_sql(branches: List[Branch]) -> None:
         
         
 def resolve_strict_geography(bank: Bank) -> Tuple[str, str, str, str]:
-    """Determines target city using tier-based international gravity weights."""
+    """Determines target city using tier-based international gravity and regional trade corridors."""
     home_country = bank.country_code
     hq_city = bank.headquarters_city
     
-    # Extract the custom cross-border expansion rate based on the bank's tier
     foreign_probability = CROSS_BORDER_PROBABILITY.get(bank.tier, 0.00)
     
-    # Execute the roll only if the bank is cross-border capable AND passes its tier probability
+    # 1. INTERNATIONAL ROUTING PIPELINE
     if bank.is_international and random.random() < foreign_probability:
-        # Cross border rollout triggered
-        foreign_countries = [c for c in CITY_CLUSTER_RULES.keys() if c != home_country]
-        target_country = random.choice(foreign_countries)
+        # Check if a custom economic corridor exists for the home country
+        if home_country in FOREIGN_CORRIDOR_WEIGHTS:
+            corridor = FOREIGN_CORRIDOR_WEIGHTS[home_country]
+            target_country = random.choices(corridor['targets'], weights=corridor['weights'], k=1)[0]
+        else:
+            # Fallback allocation if country profile doesn't have explicit weights yet
+            foreign_options = [c for c in CITY_CLUSTER_RULES.keys() if c != home_country]
+            target_country = random.choice(foreign_options) if foreign_options else home_country
+            
+        # Target a primary financial hub city within that chosen target country
         target_city = random.choice(list(CITY_CLUSTER_RULES[target_country]['anchors'].keys()))
+        
+    # 2. DOMESTIC ROUTING PIPELINE (Anchored by proximity to HQ)
     else:
-        # Strict Domestic Pipeline Rule enforced
         target_country = home_country
         if target_country not in CITY_CLUSTER_RULES or hq_city not in CITY_CLUSTER_RULES[target_country]['anchors']:
             return target_country, hq_city, "Standard District", "Main Hub"
@@ -297,7 +324,6 @@ def resolve_strict_geography(bank: Bank) -> Tuple[str, str, str, str]:
     chosen_modifier = random.choice(modifiers)
     
     return target_country, target_city, region, chosen_modifier
-
 # --- PIPELINE DEMO ---
 if __name__ == "__main__":
     mock_banks = [
