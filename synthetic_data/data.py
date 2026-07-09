@@ -6,11 +6,10 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional
 from faker import Faker
 
-# --- ENGINE DETERMINISM SEEDING ---
+
 GLOBAL_SEED = 42
 random.seed(GLOBAL_SEED)
 
-# --- CONFIGURATION & GLOBAL MAPS ---
 CURRENT_YEAR = datetime.date.today().year
 
 STATUS_MAP = {
@@ -19,7 +18,7 @@ STATUS_MAP = {
     'Closed': 'closed'
 }
 
-# Macroeconomic proxy distribution weighting based on Global Banking Sector assets size
+
 COUNTRY_MARKET_WEIGHTS = {
     'US': 0.22, 'CN': 0.15, 'JP': 0.10, 'GB': 0.08, 'DE': 0.07, 
     'FR': 0.06, 'CA': 0.05, 'AU': 0.04, 'IN': 0.06, 'BR': 0.05, 
@@ -29,11 +28,10 @@ COUNTRY_MARKET_WEIGHTS = {
 COUNTRIES = list(COUNTRY_MARKET_WEIGHTS.keys())
 COUNTRY_PROBS = list(COUNTRY_MARKET_WEIGHTS.values())
 
-# Normalize probability array explicitly to guarantee exact precision floating bounds
 PROB_SUM = sum(COUNTRY_PROBS)
 COUNTRY_PROBS = [p / PROB_SUM for p in COUNTRY_PROBS]
 
-# Initialize localized Faker instances with identical instance seed states
+
 FAKERS: Dict[str, Faker] = {
     'US': Faker('en_US'), 'GB': Faker('en_GB'), 'DE': Faker('de_DE'),
     'JP': Faker('ja_JP'), 'TR': Faker('tr_TR'), 'FR': Faker('fr_FR'),
@@ -286,13 +284,13 @@ COUNTRY_DATA = {
     }
 }
 
-# --- TRACKING GLOBAL CACHES ---
+
 used_names = set()
 used_bics = set()
 used_routings = set()
 used_licenses = set()
 
-# --- DATACLASS DESIGN ---
+
 @dataclass
 class Bank:
     legal_name: str
@@ -305,7 +303,7 @@ class Bank:
     headquarters_address: str
     license_number: str
 
-# --- COMPONENT LOGIC ENGINES ---
+
 
 def generate_unique_name(country: str) -> str:
     matrix = COUNTRY_NAMES_MATRIX[country]
@@ -420,7 +418,7 @@ def determine_status(created_date: datetime.date) -> str:
     roll = random.random() * 100
     
     if age_years > 80:
-        # Realism Tweak: Higher mortality drop probability for ancient institutions
+       
         internal_status = 'Active' if roll <= 65.0 else 'Suspended' if roll <= 75.0 else 'Closed'
     elif age_years <= 5:
         internal_status = 'Active' if roll <= 99.0 else 'Suspended'
@@ -442,28 +440,27 @@ def generate_localized_address(country: str, city: str, street_name: str, fake: 
         building_no = fake.building_number()
         return f"{building_no} {street_name}, {city}"
 
-# --- DEFENSIVE DATA INTEGRITY VALIDATION LAYER ---
 def validate_bank(bank: Bank) -> None:
     """Rigidly asserts relational metadata constraints, preventing broken table loads."""
-    # BIC Length (Can be either 8 characters or 11 characters if branch code included)
+
     if len(bank.bic) not in [8, 11]:
         raise ValueError(f"Data Integrity Fault: BIC '{bank.bic}' violates structural SWIFT length rules.")
         
-    # Country / City verification bounds Check
+  
     if bank.country_code not in COUNTRY_DATA:
         raise ValueError(f"Metadata Fault: Country Code '{bank.country_code}' not defined in runtime specifications.")
     if bank.headquarters_city not in COUNTRY_DATA[bank.country_code]['cities']:
         raise ValueError(f"Metadata Fault: City '{bank.headquarters_city}' is invalid for country '{bank.country_code}'.")
         
-    # Status check
+  
     if bank.bank_status not in STATUS_MAP.values():
         raise ValueError(f"State Fault: Status target value '{bank.bank_status}' is invalid.")
         
-    # Routing Validation rules (US-Specific check)
+   
     if bank.country_code == 'US':
         if not bank.routing_no or len(bank.routing_no) != 9 or not bank.routing_no.isdigit():
             raise ValueError(f"Routing Fault: US Route token '{bank.routing_no}' lacks explicit 9-digit format.")
-        # Re-run explicit Checksum confirmation check
+        
         d = [int(char) for char in bank.routing_no]
         checksum = (3 * (d[0] + d[3] + d[6])) + (7 * (d[1] + d[4] + d[7])) + (1 * (d[2] + d[5]))
         if checksum % 10 != d[8]:
@@ -472,7 +469,6 @@ def validate_bank(bank: Bank) -> None:
         if bank.routing_no is not None:
             raise ValueError(f"Routing Boundary Fault: Non-US entity must possess empty route pointer data maps.")
 
-# --- ORCHESTRATED FACTORY SYSTEM ---
 
 def generate_banks(count: int) -> List[Bank]:
     bank_collection: List[Bank] = []
@@ -492,8 +488,6 @@ def generate_banks(count: int) -> List[Bank]:
         license_no = generate_unique_license(country)
         created_at = generate_creation_date()
         status_val = determine_status(created_at)
-        
-        # Instantiate immutable schema object node via dataclass structure map
         bank_object = Bank(
             legal_name=legal_name,
             bic=bic,
@@ -505,8 +499,6 @@ def generate_banks(count: int) -> List[Bank]:
             headquarters_address=address,
             license_number=license_no
         )
-        
-        # Guardrail interception check
         validate_bank(bank_object)
         bank_collection.append(bank_object)
         
@@ -525,12 +517,9 @@ def export_banks_to_sql(banks: List[Bank]) -> None:
         )
         print(sql_statement)
 
-# --- ENGINE INTERFACE PIPELINE ---
 if __name__ == "__main__":
     print("-- High-Fidelity Domain Simulation Engine Initialized.")
     
-    # Generate concrete object entities safely encapsulated within memory collections
     generated_banks_pool = generate_banks(250)
     
-    # Process structured schema arrays out directly into relational script streams
     export_banks_to_sql(generated_banks_pool)
