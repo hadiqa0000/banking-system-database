@@ -1,0 +1,554 @@
+Table: Bank
+1. Database Constraints
+
+bank_id:	Primary key, auto-generated identity, NOT NULL
+legal_name:	NOT NULL, UNIQUE
+bic:	NOT NULL, UNIQUE, length must be 8 or 11 characters
+routing_no:	Nullable, UNIQUE if present, must be exactly 9 characters
+country_code:	NOT NULL, must reference an existing Country
+created_at:	NOT NULL, defaults to CURRENT_TIMESTAMP
+bank_status:	NOT NULL, must reference an existing BankStatus
+headquarters_city:	NOT NULL
+headquarters_address:	NOT NULL
+license_number:	NOT NULL, UNIQUE
+
+
+
+2. Business Rules
+
+These describe how banks operate in the real world.
+
+Identity
+Every bank has exactly one legal name.
+A legal name identifies one banking institution.
+Every bank has one primary headquarters.
+A bank belongs to exactly one home country.
+Every bank is issued exactly one banking license by its home country's regulatory authority.
+
+
+SWIFT/BIC
+Every bank participating in international transfers should have a valid SWIFT/BIC code.
+The country portion of the BIC must match the bank's country.
+Branch codes (last three characters) are optional.
+Multiple banks cannot share the same BIC.
+
+
+Routing Number
+Routing numbers are only applicable in banking systems that use them.
+Banks in the United States should have a routing number.
+Banks outside countries that use routing numbers normally should not have one.
+Routing numbers identify payment routing rather than the bank itself.
+
+
+
+Headquarters
+Headquarters city must exist within the selected country.
+Headquarters address should correspond to the headquarters city.
+Banks have only one registered headquarters in this model.
+
+
+License
+A bank cannot legally operate without a banking license.
+License numbers are unique within the issuing authority.
+License format depends on the country's banking regulator.
+
+
+Status
+Banks normally begin as Active after licensing.
+Suspended banks remain in the database but have restricted operations.
+Closed banks remain for historical records.
+Status changes over time but only one current status is stored.
+
+
+Creation Date
+The creation date represents when the bank entity was established.
+Banks cannot have future creation dates.
+Older banks are generally more common than newly established ones.
+
+
+
+
+3. Generation rules:
+
+
+Number of Banks
+Generate the desired number of banks (e.g., 100–500 depending on dataset size).
+Ensure every bank is unique.
+
+Country Selection
+
+Countries should not be selected uniformly.
+
+Example distribution:
+
+Country	Probability
+US	20%
+GB	15%
+
+Legal Name
+
+Generate realistic bank names using country-specific naming conventions.
+
+Examples:
+
+First National Bank
+Deutsche Handelsbank
+Türkiye Finans Bankası
+Sakura Commercial Bank
+Atlantic Trust Bank
+
+Patterns may include:
+
+Regional name + Bank
+National + Bank
+Commercial + Bank
+Trust + Bank
+Finance + Bank
+Credit + Bank
+
+All legal names must be unique.
+
+BIC/SWIFT Code
+
+
+bic country code must equal country_code.
+Generate valid SWIFT codes.
+Structure:
+
+BBBB CC LL XXX
+
+Where:
+
+BBBB = bank identifier (letters)
+CC = ISO country code
+LL = location code
+XXX = optional branch code
+Generation rules:
+
+Country code must match country_code.
+Use 8-character codes for headquarters when possible.
+Use 11-character codes for branches occasionally (e.g., 20–30% of records).
+Never generate duplicate BICs.
+
+
+Routing Number
+routing_no should only exist for countries that use routing numbers.
+Generate only when applicable.
+
+Example logic:
+
+if country == "US":
+    generate routing number
+else:
+    NULL
+
+Routing numbers:
+
+Exactly 9 digits.
+Unique.
+Should resemble realistic ABA routing numbers.
+
+Headquarters
+headquarters_city must belong to country_code.
+headquarters_address must be located within headquarters_city.
+Generate cities that belong to the selected country.
+
+Example:
+
+Germany
+
+Berlin
+Frankfurt
+Munich
+Hamburg
+Cologne
+
+Turkey
+
+Istanbul
+Ankara
+İzmir
+Bursa
+Antalya
+
+United States
+
+New York
+Chicago
+Charlotte
+San Francisco
+Dallas
+
+Addresses should be generated within the selected city using realistic street names and numbering.
+
+
+
+License Number
+license_number format must match the selected country.
+
+Generate country-specific license identifiers.
+
+Examples:
+
+US-OCC-000812
+TR-BRK-2025-003421
+DE-BAFIN-001248
+GB-FCA-004582
+
+Pattern depends on the regulator of the selected country.
+Always unique.
+Use sequential or randomly generated numeric portions while preserving the format.
+
+Creation Date
+
+Generate establishment dates between approximately:
+
+1900 → Current Date
+
+Use a weighted distribution so that:
+
+Very old banks (before 1950) are uncommon but present.
+Most banks are established between 1960 and 2015.
+Few banks are established in the last few years.
+
+Avoid future dates.
+
+Bank Status
+
+Use a weighted distribution rather than uniform randomness.
+ correlate status with age:
+
+Recently established banks are almost always Active.
+Older banks have a slightly higher chance of being Closed due to mergers, acquisitions, or liquidation.
+All unique fields (legal_name, bic, routing_no, license_number) must remain globally unique across the dataset.
+
+
+
+
+Table: Branch
+1. Database Constraints
+Column	Database Constraints
+bank_id	NOT NULL, must reference an existing Bank, ON DELETE CASCADE
+branch_id	Auto-generated identity, part of composite primary key
+name	NOT NULL, unique within the same bank (bank_id, name)
+region	NOT NULL
+branch_address	NOT NULL
+country_code	NOT NULL, must reference an existing Country
+Primary Key	(bank_id, branch_id)
+Unique Constraint	(bank_id, name)
+2. Business Rules
+
+These describe how bank branches operate in reality.
+
+Ownership
+Every branch belongs to exactly one bank.
+A branch cannot exist without its parent bank.
+If a bank ceases to exist, all of its branches cease to exist (represented by ON DELETE CASCADE).
+Geography
+A branch normally operates in the same country as its parent bank.
+Some multinational banks may operate branches in foreign countries.
+Every branch belongs to one country.
+Every branch has one physical address.
+The branch's address must exist within its assigned country.
+The branch's region should correspond to an administrative region, province, or state within its country.
+Branch Name
+Branch names only need to be unique within the same bank.
+Different banks may have branches with identical names.
+Branch names are often based on their location rather than being globally unique.
+
+Examples:
+
+Downtown Branch
+Central Branch
+Airport Branch
+Financial District Branch
+North Branch
+Branch Operations
+A bank must exist before any branches can be created.
+Every operational branch represents a physical banking location.
+A bank may have zero, one, or many branches.
+Larger banks generally operate more branches than smaller banks.
+3. Generation Rules
+Generation Order
+
+This table depends on the Bank table.
+
+Generation sequence:
+
+Country
+        ↓
+Bank
+        ↓
+Branch
+
+A branch should never be generated unless its parent bank already exists.
+
+Number of Branches per Bank
+
+Do not generate the same number of branches for every bank.
+
+Use a weighted distribution.
+
+Example:
+
+Number of Branches	Probability
+1–5	45%
+6–20	30%
+21–100	20%
+101–500	5%
+
+Alternatively, correlate branch count with bank size if your schema later includes a size or asset metric.
+
+Parent Bank Selection
+
+Each generated branch must reference an existing bank_id.
+
+Generation logic:
+
+For each bank:
+    Generate N branches
+
+Never generate orphan branches.
+
+Country Selection
+
+By default:
+
+branch.country_code = bank.country_code
+
+Recommended distribution:
+
+95% of branches are in the same country as their parent bank.
+5% belong to multinational banks and may exist in another country (only if your simulation models international operations).
+
+If your project does not model multinational banking, enforce:
+
+branch.country_code == bank.country_code
+Region
+
+Generate regions based on the selected country.
+
+Examples:
+
+United States
+
+California
+Texas
+New York
+Florida
+
+Germany
+
+Bavaria
+Berlin
+Hesse
+Hamburg
+
+Turkey
+
+Marmara
+Central Anatolia
+Aegean
+Mediterranean
+
+The selected city or address should belong to that region.
+
+Branch Address
+
+Generate realistic addresses.
+
+Example:
+
+145 Main Street
+22 Atatürk Boulevard
+81 Bahnhofstraße
+400 Queen Street
+
+The address should correspond to the selected region and country.
+
+Branch Name
+
+Generate names based on location.
+
+Examples:
+
+Downtown Branch
+Central Branch
+Airport Branch
+City Centre Branch
+North Branch
+South Branch
+Main Branch
+Financial District Branch
+
+A stronger approach is to derive the name from the locality:
+
+Berlin Mitte Branch
+Frankfurt Central Branch
+Kadıköy Branch
+Üsküdar Branch
+Manhattan Branch
+
+Only enforce uniqueness within the same bank.
+
+Cross-Column Consistency Rules
+
+Ensure generated records satisfy the following:
+
+bank_id must reference an existing bank.
+The parent bank must be generated before the branch.
+country_code should match the parent bank's country (unless explicitly simulating international branches).
+region must belong to the selected country.
+branch_address must belong to the selected region.
+name must be unique within the parent bank.
+A bank should not have duplicate branches at the same address.
+
+
+Table: Role
+1. Database Constraints
+Column	Database Constraints
+bank_id	NOT NULL, must reference an existing Bank, ON DELETE CASCADE
+role_id	Auto-generated identity, part of the composite primary key
+role_name	NOT NULL, unique within the same bank (bank_id, role_name)
+Primary Key	(bank_id, role_id)
+Unique Constraint	(bank_id, role_name)
+2. Business Rules
+
+These describe how employee roles exist within a bank.
+
+Ownership
+Every role belongs to exactly one bank.
+A role cannot exist without its parent bank.
+If a bank is deleted, all associated roles are deleted.
+Role Definitions
+A role defines a job position within the bank's organizational structure.
+Multiple employees may hold the same role.
+A role may temporarily have no employees assigned.
+Role names only need to be unique within the same bank.
+Different banks may have roles with identical names.
+Organizational Structure
+Every bank should have a set of core operational roles.
+Larger banks typically have more specialized roles than smaller banks.
+Executive roles are relatively few compared to operational roles.
+Specialized roles (e.g., Investment Analyst) only exist in banks that offer those services.
+Role Lifecycle
+Roles are usually created after the bank is established.
+Roles remain even if no employee is currently assigned.
+Banks may add or remove roles as their organizational structure changes.
+3. Generation Rules
+Generation Order
+
+This table depends on Bank.
+
+Country
+        ↓
+Bank
+        ↓
+Role
+
+Generate all banks before generating roles.
+
+Number of Roles per Bank
+
+Do not assign the same number of roles to every bank.
+
+Example distribution:
+
+Number of Roles	Probability
+5–10	35%
+11–20	45%
+21–40	15%
+41–60	5%
+
+Larger banks should generally have more distinct roles.
+
+Core Roles
+
+Every bank should include a common set of essential roles.
+
+Examples:
+
+Branch Manager
+Teller
+Customer Service Representative
+Loan Officer
+Compliance Officer
+Accountant
+Security Officer
+Human Resources Officer
+IT Support Specialist
+
+These roles should exist in nearly every bank.
+
+Specialized Roles
+
+Generate additional roles depending on the simulated size or complexity of the bank.
+
+Examples:
+
+Investment Advisor
+Wealth Manager
+Risk Analyst
+Treasury Analyst
+Internal Auditor
+Fraud Investigator
+Data Analyst
+Cybersecurity Analyst
+Credit Risk Manager
+Relationship Manager
+AML Compliance Officer
+DevOps Engineer
+
+Smaller banks should have few or none of these, while larger banks are more likely to include them.
+
+Role Name Selection
+
+Do not generate arbitrary job titles.
+
+Instead, select from curated banking role lists.
+
+Example probabilities:
+
+Category	Approx. Probability
+Customer-facing	35%
+Operations	25%
+Finance	15%
+Compliance & Risk	10%
+IT	10%
+Executive	5%
+Executive Roles
+
+Executive positions should be limited.
+
+Examples:
+
+Chief Executive Officer
+Chief Financial Officer
+Chief Operating Officer
+Chief Risk Officer
+Chief Technology Officer
+
+Normally generate one of each executive role per bank.
+
+Cross-Column Consistency Rules
+
+Ensure generated records satisfy the following:
+
+bank_id must reference an existing bank.
+The parent bank must exist before any roles are generated.
+role_name must be unique within each bank.
+Different banks may reuse the same role names.
+Every bank should include at least the core operational roles.
+Specialized and executive roles should become more common as the bank's organizational complexity increases.
+Dataset-Level Generation Rules
+
+To improve realism:
+
+Every bank should have a consistent organizational hierarchy, with executive, managerial, operational, and support roles.
+Large international banks should have a broader variety of specialized roles than local community banks.
+Avoid unrealistic combinations, such as a bank having only executive roles or only IT roles.
+Since employees will reference this table, generate all roles before generating employee records to ensure valid role assignments.
+
+
+
+
