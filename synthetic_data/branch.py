@@ -1,4 +1,3 @@
-
 import random
 import datetime
 import string
@@ -20,6 +19,18 @@ class BankTier(Enum):
     PRIVATE_WEALTH = "Private Wealth Management"
     INVESTMENT_CORPORATE = "Investment & Corporate Banking"
 
+class BranchStrategy(Enum):
+    AGGRESSIVE_PHYSICAL = "Aggressive Physical"
+    BALANCED_HYBRID = "Balanced Hybrid"
+    BOUTIQUE_MINIMAL = "Boutique Minimal"
+
+class BranchType(Enum):
+    HEADQUARTERS = "Corporate Headquarters"
+    FLAGSHIP     = "Metropolitan Flagship"
+    FULL_SERVICE = "Standard Full Service"
+    EXPRESS      = "Express / Retail Kiosk"
+    ATM_ONLY     = "Unstaffed ATM Vestibule"
+
 @dataclass
 class Bank:
     bank_id: int
@@ -34,19 +45,46 @@ class Bank:
     license_number: str
     tier: BankTier 
     is_international: bool
+    branch_strategy: BranchStrategy = BranchStrategy.BALANCED_HYBRID  # Added a safe default downstream matching your multiplier logic
+
 
 @dataclass
 class Branch:
     bank_id: int
     branch_id: int
-    name: str            # Now strictly derived from City + Neighborhood/Modifier
-    region: str          # ISO First Administrative Subdivision
+    name: str
+    region: str
     branch_address: str
     country_code: str
+    branch_type: BranchType  # Moved downstream definitions above this step to resolve type lookup
+
 
 # --- RESOLVED GEOGRAPHIC MATRIX ---
-# Maps an anchor city to its ISO state/province, plus realistic neighboring and far target cities
+used_localized_addresses: Dict[Tuple[str, str], set] = {}
+used_bank_city_names: Dict[Tuple[int, str], set] = {}
 
+FAKERS: Dict[str, Faker] = {'US': Faker('en_US'), 'DE': Faker('de_DE')}
+for fk in FAKERS.values():
+    fk.seed_instance(GLOBAL_SEED)
+    
+BRANCH_TYPE_DISTRIBUTIONS = {
+    BankTier.LARGE_NATIONAL: {
+        'weights': [0.02, 0.60, 0.23, 0.15], 
+        'types': [BranchType.FLAGSHIP, BranchType.FULL_SERVICE, BranchType.EXPRESS, BranchType.ATM_ONLY]
+    },
+    BankTier.REGIONAL: {
+        'weights': [0.05, 0.70, 0.20, 0.05],
+        'types': [BranchType.FLAGSHIP, BranchType.FULL_SERVICE, BranchType.EXPRESS, BranchType.ATM_ONLY]
+    },
+    BankTier.COMMUNITY: {
+        'weights': [0.85, 0.15],
+        'types': [BranchType.FULL_SERVICE, BranchType.EXPRESS] 
+    },
+    BankTier.INVESTMENT_CORPORATE: {
+        'weights': [1.00],
+        'types': [BranchType.FLAGSHIP] 
+    }
+}
 
 FOREIGN_CORRIDOR_WEIGHTS = {
     'US': {
@@ -54,18 +92,19 @@ FOREIGN_CORRIDOR_WEIGHTS = {
         'weights': [0.60, 0.15, 0.20, 0.05]  
     },
     'DE': {
-        'targets': ['GB', 'US', 'TR'],        # In a full dataset, this would include FR, CH, NL, BE
+        'targets': ['GB', 'US', 'TR'],        
         'weights': [0.50, 0.35, 0.15]  
     },
     'GB': {
         'targets': ['US', 'DE', 'TR'],
-        'weights': [0.45, 0.45, 0.10]   
+        'weights': [0.45, 0.45, 0.10]    
     },
     'TR': {
         'targets': ['DE', 'GB', 'US'],
-        'weights': [0.55, 0.25, 0.20]   
+        'weights': [0.55, 0.25, 0.20]    
     }
 }
+
 CITY_CLUSTER_RULES = {
     'US': {
         'anchors': {
@@ -125,42 +164,33 @@ CITY_CLUSTER_RULES = {
 used_bank_branch_names: Dict[int, set] = {}
 used_branch_addresses: set = {}
 
-FAKERS: Dict[str, Faker] = {'US': Faker('en_US'), 'DE': Faker('de_DE')}
-for fk in FAKERS.values():
-    fk.seed_instance(GLOBAL_SEED)
-
 # --- REVISED SCALE MATRIX BOUNDS ---
-# Tuned to provide realistic density vectors for downstream dependent tables
 TIER_FOOTPRINT_RULES = {
-    BankTier.LARGE_NATIONAL: (250, 700),       # High-volume distribution nodes for retail giants
-    BankTier.REGIONAL: (20, 80),              # Substantial multi-state or provincial coverage
-    BankTier.COMMUNITY: (1, 8),                # Local town/county hyper-focus
-    BankTier.PRIVATE_WEALTH: (1, 4),           # Limited high-end localized lounges
-    BankTier.INVESTMENT_CORPORATE: (1, 3),    # Minimal presence strictly in global capital capitals
-    BankTier.DIGITAL_NEOBANK: (0, 0)          # Headquarter only deployment models
-    
-    # --- INTERNATIONAL EXPANSION RATES BY TIER ---
-# Dictates the probability that any single generated branch will land outside the home country
-CROSS_BORDER_PROBABILITY = {
-    BankTier.LARGE_NATIONAL: 0.05,        # 5% global hub footprint (e.g., Chase in London)
-    BankTier.INVESTMENT_CORPORATE: 0.20,   # 20% global presence (offices in all financial capitals)
-    BankTier.PRIVATE_WEALTH: 0.10,        # 10% elite offshore/international lounges
-    BankTier.REGIONAL: 0.00,              # 0% Strict domestic multi-state focus
-    BankTier.COMMUNITY: 0.00,             # 0% Purely local
-    BankTier.DIGITAL_NEOBANK: 0.00         # 0% No physical retail international footprints
+    BankTier.LARGE_NATIONAL: (250, 700),      
+    BankTier.REGIONAL: (20, 80),              
+    BankTier.COMMUNITY: (1, 8),               
+    BankTier.PRIVATE_WEALTH: (1, 4),          
+    BankTier.INVESTMENT_CORPORATE: (1, 3),    
+    BankTier.DIGITAL_NEOBANK: (0, 0)          
 }
+
+# Fixed closing brace placement so this mapping is properly exposed
+CROSS_BORDER_PROBABILITY = {
+    BankTier.LARGE_NATIONAL: 0.05,        
+    BankTier.INVESTMENT_CORPORATE: 0.20,   
+    BankTier.PRIVATE_WEALTH: 0.10,        
+    BankTier.REGIONAL: 0.00,              
+    BankTier.COMMUNITY: 0.00,             
+    BankTier.DIGITAL_NEOBANK: 0.00         
 }
 
 def determine_branch_count_by_tier(bank: Bank) -> int:
-    """Calculates branch totals cleanly decoupled from age, matching core strategic intent."""
     min_b, max_b = TIER_FOOTPRINT_RULES[bank.tier]
     if min_b == 0 and max_b == 0:
-        return 0 # Neo-banks use digital-only pipelines with no sub-branches
+        return 0 
         
     base_count = random.randint(min_b, max_b)
     
-    # Optional: We can still layer on your BranchStrategy multiplier 
-    # to allow an aggressive community bank to outperform a boutique one.
     strategy_multipliers = {
         BranchStrategy.AGGRESSIVE_PHYSICAL: 1.2,
         BranchStrategy.BALANCED_HYBRID:     1.0,
@@ -170,16 +200,13 @@ def determine_branch_count_by_tier(bank: Bank) -> int:
     multiplier = strategy_multipliers.get(bank.branch_strategy, 1.0)
     final_count = max(min_b, int(base_count * multiplier))
     
-    # Hard cap at the top limit of the tier to preserve structural control
     return min(final_count, max_b)
 
 def resolve_gravity_target(bank: Bank) -> Tuple[str, str, str, str]:
-    """Determines target city using gravity weights, pulling metadata blueprints."""
     home_country = bank.country_code
     hq_city = bank.headquarters_city
     
     if bank.is_international and random.random() < 0.05:
-        # Cross border rollout
         foreign_countries = [c for c in CITY_CLUSTER_RULES.keys() if c != home_country]
         target_country = random.choice(foreign_countries)
         target_city = random.choice(list(CITY_CLUSTER_RULES[target_country]['anchors'].keys()))
@@ -204,10 +231,6 @@ def resolve_gravity_target(bank: Bank) -> Tuple[str, str, str, str]:
     return target_country, target_city, region, chosen_modifier
 
 def generate_unique_branch_name(bank_id: int, city: str, modifier: str, is_foreign: bool) -> str:
-    """Derives naming profiles from City hubs explicitly: e.g.
-
-    'Frankfurt Westend Branch'.
-    """
     if bank_id not in used_bank_branch_names:
         used_bank_branch_names[bank_id] = set()
         
@@ -231,16 +254,22 @@ def generate_unique_branch_name(bank_id: int, city: str, modifier: str, is_forei
             used_bank_branch_names[bank_id].add(numbered_name)
             return numbered_name
 
-def generate_unique_address(country: str, city: str, modifier: str, fake: Faker) -> str:
+def generate_localized_unique_address(country: str, city: str, modifier: str, fake: Faker) -> str:
+    geo_scope_key = (country, city)
+    if geo_scope_key not in used_localized_addresses:
+        used_localized_addresses[geo_scope_key] = set()
+        
     attempts = 0
     while attempts < 1000:
         street = fake.street_name()
         num = fake.building_number()
-        addr = f"{street} {num}, {city}" if country == 'DE' else f"{num} {street}, {city} ({modifier})"
         
-        if addr not in used_branch_addresses:
-            used_branch_addresses.add(addr)
-            return addr
+        raw_address_line = f"{street} {num}" if country == 'DE' else f"{num} {street}"
+        
+        if raw_address_line not in used_localized_addresses[geo_scope_key]:
+            used_localized_addresses[geo_scope_key].add(raw_address_line)
+            return f"{raw_address_line}, {city}" if country == 'DE' else f"{raw_address_line}, {city} ({modifier})"
+            
         attempts += 1
     return f"{random.randint(1000, 9999)} Commerce St, {city}"
 
@@ -249,62 +278,123 @@ def generate_branches_for_pool(banks_pool: List[Bank]) -> List[Branch]:
     global_branch_sequence_id = 1 
     
     for bank in banks_pool:
-        target_num_branches = determine_branch_count_by_tier(bank)
+        if bank.tier == BankTier.DIGITAL_NEOBANK:
+            continue
+            
+        total_capacity = determine_branch_count_by_tier(bank)
         
-        for _ in range(target_num_branches):
+        hq_region, modifiers = CITY_CLUSTER_RULES[bank.country_code]['city_metadata'][bank.headquarters_city]
+        hq_address = generate_localized_unique_address(bank.country_code, bank.headquarters_city, modifiers[0], FAKERS[bank.country_code])
+        
+        hq_branch = Branch(
+            bank_id=bank.bank_id,
+            branch_id=global_branch_sequence_id,
+            name=f"{bank.headquarters_city} Corporate Headquarters",
+            region=hq_region,
+            branch_address=hq_address,
+            country_code=bank.country_code,
+            branch_type=BranchType.HEADQUARTERS
+        )
+        branch_collection.append(hq_branch)
+        global_branch_sequence_id += 1
+        
+        if total_capacity <= 1:
+            continue
+            
+        dist = BRANCH_TYPE_DISTRIBUTIONS[bank.tier]
+        
+        for _ in range(total_capacity - 1):
             target_country, target_city, region, modifier = resolve_gravity_target(bank)
             fake_inst = FAKERS.get(target_country, FAKERS['US'])
             
+            chosen_type = random.choices(dist['types'], weights=dist['weights'], k=1)[0]
+            
             is_foreign = (target_country != bank.country_code)
-            branch_name = generate_unique_branch_name(bank.bank_id, target_city, modifier, is_foreign)
-            branch_address = generate_unique_address(target_country, target_city, modifier, fake_inst)
+            base_name = generate_unique_branch_name(bank.bank_id, target_city, modifier, is_foreign)
+            if chosen_type == BranchType.EXPRESS:
+                base_name = base_name.replace("Branch", "Express Kiosk")
+            elif chosen_type == BranchType.ATM_ONLY:
+                base_name = base_name.replace("Branch", "Automated Teller Vault")
+                
+            branch_address = generate_localized_unique_address(target_country, target_city, modifier, fake_inst)
             
             branch_obj = Branch(
                 bank_id=bank.bank_id,
                 branch_id=global_branch_sequence_id,
-                name=branch_name,
+                name=base_name,
                 region=region,
                 branch_address=branch_address,
-                country_code=target_country
+                country_code=target_country,
+                branch_type=chosen_type
             )
             
             branch_collection.append(branch_obj)
             global_branch_sequence_id += 1
             
     return branch_collection
+    
+def generate_natural_branch_name(bank_id: int, city: str, modifier: str) -> str:
+    bank_city_scope = (bank_id, city)
+    if bank_city_scope not in used_bank_city_names:
+        used_bank_city_names[bank_city_scope] = set()
+
+    base_proposal = f"{city} {modifier} Branch"
+    if base_proposal not in used_bank_city_names[bank_city_scope]:
+        used_bank_city_names[bank_city_scope].add(base_proposal)
+        return base_proposal
+
+    directional_markers = ["North", "South", "East", "West", "Airport", "Medical District", "Financial Center"]
+    for marker in directional_markers:
+        marker_proposal = f"{city} {marker} Branch"
+        if marker_proposal not in used_bank_city_names[bank_city_scope]:
+            used_bank_city_names[bank_city_scope].add(marker_proposal)
+            return marker_proposal
+
+    roman_numerals = ["II", "III", "IV", "V", "VI", "VII"]
+    for roman in roman_numerals:
+        numeral_proposal = f"{city} {modifier} Branch {roman}"
+        if numeral_proposal not in used_bank_city_names[bank_city_scope]:
+            used_bank_city_names[bank_city_scope].add(numeral_proposal)
+            return numeral_proposal
+
+    idx = 1
+    while True:
+        fallback_proposal = f"{city} {modifier} Branch #{idx}"
+        if fallback_proposal not in used_bank_city_names[bank_city_scope]:
+            used_bank_city_names[bank_city_scope].add(fallback_proposal)
+            return fallback_proposal
 
 def export_branches_to_sql(branches: List[Branch]) -> None:
     for br in branches:
+        # Replaced outer quotes with single quotes to fix string parsing syntax error
+        name_escaped = br.name.replace("'", "''")
+        region_escaped = br.region.replace("'", "''")
+        addr_escaped = br.branch_address.replace("'", "''")
+        
         sql_statement = (
             f"INSERT INTO Branch (bank_id, name, region, branch_address, country_code) "
-            f"VALUES ({br.bank_id}, '{br.name.replace("'", "''")}', '{br.region.replace("'", "''")}', "
-            f"'{br.branch_address.replace("'", "''")}', '{br.country_code}');"
+            f"VALUES ({br.bank_id}, '{name_escaped}', '{region_escaped}', "
+            f"'{addr_escaped}', '{br.country_code}');"
         )
         print(sql_statement)
         
         
 def resolve_strict_geography(bank: Bank) -> Tuple[str, str, str, str]:
-    """Determines target city using tier-based international gravity and regional trade corridors."""
     home_country = bank.country_code
     hq_city = bank.headquarters_city
     
     foreign_probability = CROSS_BORDER_PROBABILITY.get(bank.tier, 0.00)
     
-    # 1. INTERNATIONAL ROUTING PIPELINE
     if bank.is_international and random.random() < foreign_probability:
-        # Check if a custom economic corridor exists for the home country
         if home_country in FOREIGN_CORRIDOR_WEIGHTS:
             corridor = FOREIGN_CORRIDOR_WEIGHTS[home_country]
             target_country = random.choices(corridor['targets'], weights=corridor['weights'], k=1)[0]
         else:
-            # Fallback allocation if country profile doesn't have explicit weights yet
             foreign_options = [c for c in CITY_CLUSTER_RULES.keys() if c != home_country]
             target_country = random.choice(foreign_options) if foreign_options else home_country
             
-        # Target a primary financial hub city within that chosen target country
         target_city = random.choice(list(CITY_CLUSTER_RULES[target_country]['anchors'].keys()))
         
-    # 2. DOMESTIC ROUTING PIPELINE (Anchored by proximity to HQ)
     else:
         target_country = home_country
         if target_country not in CITY_CLUSTER_RULES or hq_city not in CITY_CLUSTER_RULES[target_country]['anchors']:
@@ -324,6 +414,7 @@ def resolve_strict_geography(bank: Bank) -> Tuple[str, str, str, str]:
     chosen_modifier = random.choice(modifiers)
     
     return target_country, target_city, region, chosen_modifier
+
 # --- PIPELINE DEMO ---
 if __name__ == "__main__":
     mock_banks = [
