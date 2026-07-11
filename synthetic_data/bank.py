@@ -10,7 +10,7 @@ from faker import Faker
 GLOBAL_SEED = 42
 random.seed(GLOBAL_SEED)
 
-CURRENT_YEAR = datetime.date.today().year
+CURRENT_YEAR = datetime.date.today().year #built in function used to initialize current year 
 
 STATUS_MAP = {
     'Active': 'active',
@@ -26,7 +26,8 @@ COUNTRY_MARKET_WEIGHTS = {
 }
 
 COUNTRIES = list(COUNTRY_MARKET_WEIGHTS.keys())
-COUNTRY_PROBS = list(COUNTRY_MARKET_WEIGHTS.values())
+
+assert abs(sum(COUNTRY_PROBS) - 1.0) < 1e-10, "Probabilities don't sum to 1"
 
 PROB_SUM = sum(COUNTRY_PROBS)
 COUNTRY_PROBS = [p / PROB_SUM for p in COUNTRY_PROBS]
@@ -284,13 +285,15 @@ COUNTRY_DATA = {
     }
 }
 
-
+#generating empty sets in python to only generate unique names,bics, routings and licenses, as per rwequirement of business rules
 used_names = set()
 used_bics = set()
 used_routings = set()
 used_licenses = set()
 
 
+
+#very basic, we create a class of the table
 @dataclass
 class Bank:
     legal_name: str
@@ -304,9 +307,12 @@ class Bank:
     license_number: str
 
 
+#for our first requirememnt we generate a unique name
 
-def generate_unique_name(country: str) -> str:
-    matrix = COUNTRY_NAMES_MATRIX[country]
+
+def generate_unique_name(country: str) -> str: #the arrow suggests this likely will return a string
+    matrix = COUNTRY_NAMES_MATRIX[country] #look through the dictionary COUNTRY_NAMES_MATRIX for a country and store it as matrix(which is a dictionary)
+    #the dictionary has sections geo, brand, type, template
     for _ in range(200):
         template = random.choice(matrix['templates'])
         geo = random.choice(matrix['geo'])
