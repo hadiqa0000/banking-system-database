@@ -423,7 +423,7 @@ If a bank is deleted, all associated roles are deleted.
 Role Definitions
 A role defines a job position within the bank's organizational structure.
 Multiple employees may hold the same role.
-A role may temporarily have no employees assigned.
+A role may temporarily have no employees assigned except for a manager and CEO/ board of directors, there is always one
 Role names only need to be unique within the same bank.
 Different banks may have roles with identical names.
 Organizational Structure
