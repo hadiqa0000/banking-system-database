@@ -204,7 +204,7 @@ def generate_bank_legal_name(
             return f"{prefix} {selected_city} {holding}"
 
     def _get_random_name():
-        """Generate completely random bank name"""
+        
         components = []
 
         if country.upper() == "PAKISTAN":
@@ -351,6 +351,34 @@ def validate_us_routing_number(routing_number: str) -> bool:
     )
 
     return weighted_sum % 10 == 0
+    
+    
+    
+def generate_sort_code(bank_country_code: str) -> Optional[str]:
+
+
+    if bank_country_code.upper() != "UK":
+        return None
+    digits = "".join(random.choices("0123456789", k=6))
+    sort_code = f"{digits[0:2]}-{digits[2:4]}-{digits[4:6]}"
+    return sort_code
+
+def validate_uk_sort_code(sort_code: str) -> bool:
+
+    if not sort_code:
+        return False
+    clean_sort_code = sort_code.replace("-", "")
+    if len(clean_sort_code) != 6 or not clean_sort_code.isdigit():
+        return False
+
+    if "-" in sort_code:
+        parts = sort_code.split("-")
+        if len(parts) != 3:
+            return False
+        for part in parts:
+            if len(part) != 2 or not part.isdigit():
+                return False
+    return True
       
     
     
