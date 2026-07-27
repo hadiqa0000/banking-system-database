@@ -307,7 +307,8 @@ def generate_bic(bank_name: str, country: str, city: str) -> str:
         while len(city_code) < 2:
             city_code += '0'
     else:
-        city_code = random.choice(['01', '02', '03', 'XX'])                        
+        city_code = random.choice(['01', '02', '03', 'XX'])   
+    bic_8 = f"{bank_code}{country_code}{city_code}"                     
 
 
 
