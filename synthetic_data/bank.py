@@ -1,11 +1,12 @@
 from __future__ import annotations
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from datetime import date
 from dataclasses import dataclass
 from typing import Set, tuple 
 from .config import countries
 import re
+import string
 
 
 
@@ -296,7 +297,9 @@ def generate_bank_legal_name(
     return name
            
        
-      
+def generate_bic(bank_name: str, country: str, city: str) -> str:
+    country_code = country_codes.get(country, 'XX')
+    bank_code = ''.join([c for c in bank_name.upper() if c.isalpha()])[:4]        
 
 
 
