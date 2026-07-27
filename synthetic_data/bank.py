@@ -3,6 +3,7 @@ import random
 from typing import Dict, List
 from datetime import date
 from dataclasses import dataclass
+from typing import Set, tuple 
 
 
  
@@ -18,11 +19,11 @@ class Address:
         return f"Sk. {self.street_no}, bina: {self.building_no}, {self.district}/{self.city}, {self.country}"
         
         
-ALL_GEOGRAPHY = {
-    **TURKIYE_GEOGRAPHY,
-    **US_GEOGRAPHY,
-    **UK_GEOGRAPHY
-}
+
+
+
+def generate_unique_addresses() -> Address:
+
 
 
 @dataclass 
@@ -42,6 +43,21 @@ class Bank:
         
         
 def generate_bank_legal_name():
+    generated_addresses: Set[Tuple] = set() 
+    while True:
+       country = random.choice(list(ALL_GEOGRAPHIES.keys()))
+       city_map = ALL_GEOGRAPHIES[country]
+       
+       
+       city = random.choice(list(city_map.keys())
+       district = random.choice(city_map[city])
+       
+       building_no = str(random.randint(1,50))
+       street_no = str(random.randint(1,40))
+       
+       
+       
+      
 
 
 

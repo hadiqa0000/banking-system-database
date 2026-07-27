@@ -260,3 +260,10 @@ PAKISTAN_GEOGRAPHY = {
     "Gwadar": ["Cantonment", "Gulshan", "Pasni", "Ormara", "Turbat", "Dasht", "Kech", "Hoshab", "Mand", "Suntsar"],
     "Panjgur": ["Cantonment", "Gulshan", "Turbat", "Dasht", "Kech", "Hoshab", "Mand", "Suntsar", "Gabd", "Kalar"]
 }
+
+
+ALL_GEOGRAPHIES = {
+    "Turkey": TURKIYE_GEOGRAPHY,
+    "USA": US_GEOGRAPHY,
+    "UK": UK_GEOGRAPHY
+}
