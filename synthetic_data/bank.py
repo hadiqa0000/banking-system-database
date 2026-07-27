@@ -5,6 +5,7 @@ from datetime import date
 from dataclasses import dataclass
 from typing import Set, tuple 
 from .config import countries
+import re
 
 
 
@@ -73,6 +74,242 @@ def generate_unique_addresses() -> Address:
           
           
           
+          
+import random
+import re
+from typing import Dict
+
+
+def generate_bank_legal_name(
+    country: str = "US",
+    geography_data: Dict = None,
+    city: str = None,
+    district: str = None,
+    name_type: str = "random",
+    include_abbreviation: bool = True,
+    include_holding_company: bool = False,
+    bank_type: str = "commercial",
+) -> str:
+    if geography_data is None:
+        if country.upper() == "US":
+            geography_data = UNITED_STATES_GEOGRAPHY
+        elif country.upper() == "UK":
+            geography_data = UNITED_KINGDOM_GEOGRAPHY
+        elif country.upper() == "PAKISTAN":
+            geography_data = PAKISTAN_GEOGRAPHY
+        else:
+            raise ValueError("Country must be 'US', 'UK', or 'Pakistan'")
+
+    if city is None and geography_data:
+        selected_city = random.choice(list(geography_data.keys()))
+    elif city and city in geography_data:
+        selected_city = city
+    else:
+        selected_city = random.choice(list(geography_data.keys()))
+
+    if district is None and geography_data.get(selected_city):
+        selected_district = random.choice(geography_data[selected_city])
+    elif district and district in geography_data.get(selected_city, []):
+        selected_district = district
+    else:
+        selected_district = random.choice(geography_data[selected_city])
+
+    
+    def _get_location_based_name():
+        components = []
+
+        if random.choice([True, False]):
+            components.append(selected_district)
+
+        if selected_city and random.choice([True, False]):
+            components.append(selected_city)
+
+        if country.upper() == "PAKISTAN":
+            if bank_type == "islamic":
+                islamic_name = random.choice(
+                    PAKISTAN_COMPONENTS["islamic_prefixes"]
+                )
+                if components:
+                    components.insert(0, islamic_name)
+                else:
+                    components.append(islamic_name)
+                suffix = random.choice(["Islamic Bank", "Bank Limited"])
+                components.append(suffix)
+            else:
+                suffix = random.choice(PAKISTAN_COMPONENTS["suffixes"])
+                if len(components) < 2:
+                    components.append(
+                        random.choice(PAKISTAN_COMPONENTS["prefixes"])
+                    )
+                components.append(suffix)
+        elif country.upper() == "US":
+            suffix = random.choice(US_COMPONENTS["suffixes"])
+            if len(components) < 2:
+                components.insert(
+                    0, random.choice(US_COMPONENTS["prefixes"])
+                )
+            components.append(suffix)
+        else:  
+            suffix = random.choice(UK_COMPONENTS["suffixes"])
+            if len(components) < 2:
+                components.insert(
+                    0, random.choice(UK_COMPONENTS["prefixes"])
+                )
+            components.append(suffix)
+
+        return " ".join(components)
+
+    def _get_abbreviation_based_name():
+        if country.upper() == "PAKISTAN":
+            abbreviations = {
+                "UBL": "United Bank Limited",
+                "MCB": "Muslim Commercial Bank",
+                "ABL": "Allied Bank Limited",
+                "HBL": "Habib Bank Limited",
+                "NBP": "National Bank of Pakistan",
+                "MBL": "Meezan Bank Limited",
+                "FBL": "Faysal Bank Limited",
+            }
+        elif country.upper() == "US":
+            abbreviations = {
+                "JPM": "JPMorgan Chase Bank",
+                "WFC": "Wells Fargo Bank",
+                "BAC": "Bank of America",
+                "CITI": "Citibank",
+                "USB": "US Bank",
+                "PNC": "PNC Bank",
+                "TFC": "Truist Financial",
+            }
+        else:  # UK
+            abbreviations = {
+                "HSBC": "Hong Kong and Shanghai Banking Corporation",
+                "BARC": "Barclays Bank",
+                "LLOY": "Lloyds Banking Group",
+                "NWG": "NatWest Group",
+                "SANT": "Santander UK",
+                "STD": "Standard Chartered",
+            }
+
+        abbrev = random.choice(list(abbreviations.keys()))
+        full_name = abbreviations[abbrev]
+
+        
+        if country.upper() == "PAKISTAN":
+            legal = random.choice(PAKISTAN_COMPONENTS["legal_status"])
+        elif country.upper() == "US":
+            legal = random.choice(US_COMPONENTS["legal_status"])
+        else:  
+            legal = random.choice(UK_COMPONENTS["legal_status"])
+
+        return f"{full_name} {legal} ({abbrev})"
+
+    def _get_holding_company_name():
+        if country.upper() == "PAKISTAN":
+            prefix = random.choice(PAKISTAN_COMPONENTS["prefixes"])
+            holding = random.choice(PAKISTAN_COMPONENTS["holding"])
+            return f"{prefix} {selected_city} {holding}"
+        elif country.upper() == "US":
+            prefix = random.choice(US_COMPONENTS["prefixes"])
+            holding = random.choice(US_COMPONENTS["holding"])
+            return f"{prefix} {selected_city} {holding}"
+        else:  # UK
+            prefix = random.choice(UK_COMPONENTS["prefixes"])
+            holding = random.choice(UK_COMPONENTS["holding"])
+            return f"{prefix} {selected_city} {holding}"
+
+    def _get_random_name():
+        """Generate completely random bank name"""
+        components = []
+
+        if country.upper() == "PAKISTAN":
+            # Add Islamic prefix if bank_type is islamic
+            if bank_type == "islamic" and random.choice([True, False]):
+                components.append(
+                    random.choice(PAKISTAN_COMPONENTS["islamic_prefixes"])
+                )
+
+            # Add prefix
+            if random.choice([True, False]):
+                components.append(
+                    random.choice(PAKISTAN_COMPONENTS["prefixes"])
+                )
+
+            # Add location
+            if random.choice([True, False]):
+                components.append(selected_city)
+
+            # Add suffix
+            components.append(random.choice(PAKISTAN_COMPONENTS["suffixes"]))
+
+            # Add legal status
+            if random.choice([True, False]):
+                components.append(
+                    random.choice(PAKISTAN_COMPONENTS["legal_status"])
+                )
+
+        elif country.upper() == "US":
+            # Add prefix
+            if random.choice([True, False]):
+                components.append(random.choice(US_COMPONENTS["prefixes"]))
+
+            # Add location
+            if random.choice([True, False]):
+                components.append(selected_city)
+
+            # Add suffix
+            components.append(random.choice(US_COMPONENTS["suffixes"]))
+
+            # Add legal status
+            if random.choice([True, False]):
+                components.append(
+                    random.choice(US_COMPONENTS["legal_status"])
+                )
+
+        else: 
+            
+            if random.choice([True, False]):
+                components.append(random.choice(UK_COMPONENTS["prefixes"]))
+
+            if random.choice([True, False]):
+                components.append(selected_city)
+
+           
+            components.append(random.choice(UK_COMPONENTS["suffixes"]))
+            if random.choice([True, False]):
+                components.append(
+                    random.choice(UK_COMPONENTS["legal_status"])
+                )
+
+        return " ".join(components)
+
+    
+    generation_methods = {
+        "random": _get_random_name,
+        "location_based": _get_location_based_name,
+        "abbreviation": _get_abbreviation_based_name,
+        "holding_company": _get_holding_company_name,
+    }
+
+    
+    method = generation_methods.get(name_type, _get_random_name)
+    name = method()
+
+   
+    if include_abbreviation and name_type != "abbreviation":
+        
+        words = re.findall(r"\b[A-Za-z]+\b", name)
+        if len(words) >= 2:
+            initials = "".join(
+                [
+                    word[0]
+                    for word in words
+                    if len(word) > 1 and word[0].isalpha()
+                ]
+            )
+            if 2 <= len(initials) <= 4 and f"({initials})" not in name:
+                name = f"{name} ({initials})"
+
+    return name
            
        
       
