@@ -316,9 +316,10 @@ def generate_bic(bank_name: str, country: str, city: str) -> str:
     
     
     
-def generate_us_routing_number() -> str:
+def generate_us_routing_number(bank_country_code : str) -> str:
 
-
+    if bank_country_code.upper() != "US":
+        return None
     valid_prefixes = [
         f"{i:02d}" for i in range(1, 13)
     ] + [str(i) for i in range(21, 33)]
