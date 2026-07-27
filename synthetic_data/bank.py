@@ -299,7 +299,15 @@ def generate_bank_legal_name(
        
 def generate_bic(bank_name: str, country: str, city: str) -> str:
     country_code = country_codes.get(country, 'XX')
-    bank_code = ''.join([c for c in bank_name.upper() if c.isalpha()])[:4]        
+    bank_code = ''.join([c for c in bank_name.upper() if c.isalpha()])[:4]
+    while len(bank_code) < 4:
+        bank_code += 'X'
+    if city:
+        city_code = ''.join([c for c in city.upper() if c.isalpha()])[:2]
+        while len(city_code) < 2:
+            city_code += '0'
+    else:
+        city_code = random.choice(['01', '02', '03', 'XX'])                        
 
 
 
