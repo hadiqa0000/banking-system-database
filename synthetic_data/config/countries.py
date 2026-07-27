@@ -309,3 +309,11 @@ US_COMPONENTS = {
         'islamic_prefixes': ['Al-Falah', 'Al-Baraka', 'Mezan', 'Faysal', 'Islami',
                            'Meezan', 'Al-Hilal', 'Al-Noor', 'Al-Khair', 'Al-Jazira']
     }
+    
+    
+    
+ country_codes = {
+        'US': 'US',
+        'UK': 'GB',
+        'PAKISTAN': 'PK'
+    }

@@ -179,6 +179,7 @@ CREATE TABLE Bank (
     bank_legal_name VARCHAR(100) NOT NULL UNIQUE,
     bic VARCHAR(11) NOT NULL UNIQUE CHECK (LENGTH(bic) IN (8, 11)),
     bank_routing_no VARCHAR(9) NULL CHECK (LENGTH(routing_no) = 9),
+    bank_sort_code VARCHAR(8) NULL
     bank_country_code CHAR(2) NOT NULL,
     bank_opened_at DATE NOT NULL,
     bank_status VARCHAR(20) NOT NULL,

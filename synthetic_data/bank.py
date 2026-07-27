@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union,Tuple
 from datetime import date
 from dataclasses import dataclass
 from typing import Set, tuple 
@@ -29,6 +29,7 @@ class Bank:
     bank_legal_name: str
     bic: str
     bank_routing_no: str
+    bank_sort_code : str
     bank_country_code: str
     bank_opened_at: date
     bank_status: str
@@ -308,7 +309,14 @@ def generate_bic(bank_name: str, country: str, city: str) -> str:
             city_code += '0'
     else:
         city_code = random.choice(['01', '02', '03', 'XX'])   
-    bic_8 = f"{bank_code}{country_code}{city_code}"                     
+    bic_8 = f"{bank_code}{country_code}{city_code}"    
+    bic_11 = f"{bic_8}XXX"
+    
+    return bic_11 if random.choice([True, False]) else bic_8     
+    
+    
+    
+def generate_routing_no(            
 
 
 
