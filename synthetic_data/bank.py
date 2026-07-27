@@ -336,6 +336,7 @@ def generate_us_routing_number() -> str:
 ]
     weighted_sum = sum(weighted_products)
 
+    checksum_digit = (10 - (weighted_sum % 10)) % 10
 
         
 
