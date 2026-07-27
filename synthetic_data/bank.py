@@ -333,10 +333,27 @@ def generate_us_routing_number() -> str:
     int(digit) * weight 
     for digit, weight in digit_weight_pairs
     
-]
+            ]
     weighted_sum = sum(weighted_products)
-
     checksum_digit = (10 - (weighted_sum % 10)) % 10
+    return f"{first_8_digits}{checksum_digit}"
+    
+def validate_us_routing_number(routing_number: str) -> bool:
+    if not routing_number or len(routing_number) != 9 or not routing_number.isdigit():  
+    return False
+    if not routing_number or len(routing_number) != 9 or not routing_number.isdigit():
+        return False
+
+    weights = [3, 7, 1, 3, 7, 1, 3, 7, 1]
+    weighted_sum = sum(
+        int(digit) * weight for digit, weight in zip(routing_number, weights)
+    )
+
+    return weighted_sum % 10 == 0
+      
+    
+    
+
 
         
 
