@@ -267,3 +267,45 @@ ALL_GEOGRAPHIES = {
     "USA": US_GEOGRAPHY,
     "UK": UK_GEOGRAPHY
 }
+
+
+
+US_COMPONENTS = {
+        'prefixes': ['First', 'National', 'United', 'American', 'Commonwealth',
+                    'Capital', 'Citizens', 'Community', 'Peoples', 'State',
+                    'Union', 'Republic', 'Federal', 'Liberty', 'Independence',
+                    'Continental', 'Merchants', 'Manufacturers', 'Farmers', 'Traders'],
+        'suffixes': ['Bank', 'Trust', 'Savings Bank', 'Bank & Trust', 'National Bank',
+                    'Trust Company', 'State Bank', 'Federal Savings', 'Investment Bank',
+                    'Commercial Bank', 'Financial', 'Banking Corporation'],
+        'legal_status': ['National Association', 'NA', 'Inc.', 'Corp.', 'FSB', 'SB'],
+        'holding': ['Bancorp', 'Bancshares', 'Financial Group', 'Holdings', 'Corporation'],
+        'eponyms': ['Hamilton', 'Franklin', 'Madison', 'Monroe', 'Washington',
+                   'Lincoln', 'Jefferson', 'Jackson', 'Roosevelt', 'Clinton',
+                   'Morgan', 'Rockefeller', 'Vanderbilt', 'Whitney', 'Astor']
+    }
+    
+    UK_COMPONENTS = {
+        'prefixes': ['Royal', 'National', 'International', 'Global', 'United',
+                    'Allied', 'Central', 'Imperial', 'Commonwealth', 'British',
+                    'Anglo', 'European', 'Transatlantic', 'Colonial', 'Standard'],
+        'suffixes': ['Bank', 'Banking', 'Financial', 'Investment Bank', 'Merchant Bank',
+                    'Building Society', 'Savings Bank', 'Private Bank'],
+        'legal_status': ['PLC', 'Ltd', 'LLP', 'Group', 'Holdings'],
+        'eponyms': ['Victoria', 'Elizabeth', 'George', 'William', 'Henry',
+                   'Edward', 'Charles', 'James', 'Alexander', 'David',
+                   'Lloyd', 'Barclay', 'Coutts', 'Hoare', 'Child']
+    }
+    
+    PAKISTAN_COMPONENTS = {
+        'prefixes': ['National', 'Allied', 'Muslim', 'Habib', 'Mezan', 'Faysal',
+                    'Pak', 'Al-', 'United', 'Bank', 'Standard', 'City'],
+        'suffixes': ['Bank', 'Bank Limited', 'Banking', 'Financial', 'Investment Bank',
+                    'Microfinance Bank', 'Islamic Bank'],
+        'legal_status': ['Limited', 'Ltd', 'PLC', 'Private Limited', 'Pvt Ltd'],
+        'holding': ['Group', 'Holdings', 'Corporation', 'Ltd'],
+        'eponyms': ['Muhammad', 'Jinnah', 'Iqbal', 'Ghazali', 'Razi', 'Farabi',
+                   'Khalid', 'Omar', 'Hassan', 'Hussain', 'Siddiqui', 'Farooqui'],
+        'islamic_prefixes': ['Al-Falah', 'Al-Baraka', 'Mezan', 'Faysal', 'Islami',
+                           'Meezan', 'Al-Hilal', 'Al-Noor', 'Al-Khair', 'Al-Jazira']
+    }

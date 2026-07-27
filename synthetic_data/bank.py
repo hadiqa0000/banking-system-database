@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import date
 from dataclasses import dataclass
 from typing import Set, tuple 
@@ -20,13 +20,6 @@ class Address:
     
     def to_string(self) -> str:
         return f"Sk. {self.street_no}, bina: {self.building_no}, {self.district}/{self.city}, {self.country}"
-        
-        
-
-
-
-
-
 
 
 @dataclass 
@@ -71,15 +64,6 @@ def generate_unique_addresses() -> Address:
         if generated_addr not in generated_addresses:
           generated_addresses.add(generated_addr)
           return addr
-          
-          
-          
-          
-import random
-import re
-from typing import Dict
-
-
 def generate_bank_legal_name(
     country: str = "US",
     geography_data: Dict = None,
