@@ -328,10 +328,13 @@ def generate_us_routing_number() -> str:
     first_8_digits = prefix + middle_digits
     weights = [3, 7, 1, 3, 7, 1, 3, 7]
     digit_weight_pairs = zip(first_8_digits, weights)
+    
     weighted_products = [
     int(digit) * weight 
     for digit, weight in digit_weight_pairs
+    
 ]
+    weighted_sum = sum(weighted_products)
 
 
         
