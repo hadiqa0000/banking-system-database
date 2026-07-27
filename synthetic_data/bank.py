@@ -4,6 +4,8 @@ from typing import Dict, List
 from datetime import date
 from dataclasses import dataclass
 from typing import Set, tuple 
+from .config import countries
+
 
 
  
@@ -22,7 +24,7 @@ class Address:
 
 
 
-def generate_unique_addresses() -> Address:
+
 
 
 
@@ -41,8 +43,7 @@ class Bank:
     def bank_headquarters_city(self) -> str:
         return self.bank_headquarters_address.city
         
-        
-def generate_bank_legal_name():
+def generate_unique_addresses() -> Address:
     generated_addresses: Set[Tuple] = set() 
     while True:
        country = random.choice(list(ALL_GEOGRAPHIES.keys()))
@@ -56,6 +57,23 @@ def generate_bank_legal_name():
        street_no = str(random.randint(1,40))
        
        
+       addr = Address(
+           building_no = building_no,
+           street_no = street_no,
+           district= district,
+           city= city,
+           country=country
+           
+           )
+        generated_addr= (country,city,district,street_no,building_no)
+        
+        if generated_addr not in generated_addresses:
+          generated_addresses.add(generated_addr)
+          return addr
+          
+          
+          
+           
        
       
 
