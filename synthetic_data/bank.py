@@ -206,44 +206,44 @@ def generate_bank_legal_name(
         components = []
 
         if country.upper() == "PAKISTAN":
-            # Add Islamic prefix if bank_type is islamic
+            
             if bank_type == "islamic" and random.choice([True, False]):
                 components.append(
                     random.choice(PAKISTAN_COMPONENTS["islamic_prefixes"])
                 )
 
-            # Add prefix
+            
             if random.choice([True, False]):
                 components.append(
                     random.choice(PAKISTAN_COMPONENTS["prefixes"])
                 )
 
-            # Add location
+           
             if random.choice([True, False]):
                 components.append(selected_city)
 
-            # Add suffix
+            
             components.append(random.choice(PAKISTAN_COMPONENTS["suffixes"]))
 
-            # Add legal status
+            
             if random.choice([True, False]):
                 components.append(
                     random.choice(PAKISTAN_COMPONENTS["legal_status"])
                 )
 
         elif country.upper() == "US":
-            # Add prefix
+            
             if random.choice([True, False]):
                 components.append(random.choice(US_COMPONENTS["prefixes"]))
 
-            # Add location
+            
             if random.choice([True, False]):
                 components.append(selected_city)
 
-            # Add suffix
+            
             components.append(random.choice(US_COMPONENTS["suffixes"]))
 
-            # Add legal status
+            
             if random.choice([True, False]):
                 components.append(
                     random.choice(US_COMPONENTS["legal_status"])
