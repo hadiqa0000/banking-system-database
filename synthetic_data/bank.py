@@ -319,8 +319,10 @@ def generate_bic(bank_name: str, country: str, city: str) -> str:
 def generate_us_routing_number() -> str:
 
 
-valid_prefixes = [
+    valid_prefixes = [
         f"{i:02d}" for i in range(1, 13)
     ] + [str(i) for i in range(21, 33)]
+    
+    prefix = random.choice(valid_prefixes)
         
 
