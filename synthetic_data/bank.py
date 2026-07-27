@@ -324,5 +324,7 @@ def generate_us_routing_number() -> str:
     ] + [str(i) for i in range(21, 33)]
     
     prefix = random.choice(valid_prefixes)
+    middle_digits = "".join([str(random.randint(0, 9)) for _ in range(6)])
+
         
 
