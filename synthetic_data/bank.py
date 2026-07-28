@@ -296,61 +296,70 @@ def generate_bank_legal_name(
                 name = f"{name} ({initials})"
 
     return name
-           
-           
-used_bic: Set[str] = set()                
-def generate_bic(bank_name: str, country: str, city: str) -> str:
-    country_code = country_codes.get(country, 'XX')
-    bank_code = ''.join([c for c in bank_name.upper() if c.isalpha()])[:4]
-    while len(bank_code) < 4:
-        bank_code += 'X'
-    if city:
-        city_code = ''.join([c for c in city.upper() if c.isalpha()])[:2]
-        while len(city_code) < 2:
-            city_code += '0'
-    else:
-        city_code = random.choice(['01', '02', '03', 'XX'])   
-    bic_8 = f"{bank_code}{country_code}{city_code}"    
-    bic_11 = f"{bic_8}XXX"
-    
-   if bic not in used_bic:
-            used_bic.add(bic)
-            return bic   
-    
-    
-used_routing_numbers: Set[str] = set()    
-def generate_us_routing_number(bank_country_code : str) -> str:
+used_bic: Set[str] = set()
+used_routing_numbers: Set[str] = set()
+used_sort_code: Set[str] = set()
 
+country_codes = {}
+
+
+def generate_bic(bank_name: str, country: str, city: str) -> str:
+    country_code = country_codes.get(country, "XX")
+    bank_code = "".join([c for c in bank_name.upper() if c.isalpha()])[:4]
+    while len(bank_code) < 4:
+        bank_code += "X"
+
+    if city:
+        city_code = "".join([c for c in city.upper() if c.isalpha()])[:2]
+        while len(city_code) < 2:
+            city_code += "0"
+    else:
+        city_code = random.choice(["01", "02", "03", "XX"])
+
+    bic_8 = f"{bank_code}{country_code}{city_code}"
+    bic_11 = f"{bic_8}XXX"
+
+    while True:
+        bic = bic_11 if random.choice([True, False]) else bic_8
+        if bic not in used_bic:
+            used_bic.add(bic)
+            return bic
+
+
+def generate_us_routing_number(bank_country_code: str) -> Optional[str]:
     if bank_country_code.upper() != "US":
         return None
-    valid_prefixes = [
-        f"{i:02d}" for i in range(1, 13)
-    ] + [str(i) for i in range(21, 33)]
-    
-    prefix = random.choice(valid_prefixes)
-    middle_digits = "".join(random.choices("0123456789", k=6))
-    first_8_digits = prefix + middle_digits
-    weights = [3, 7, 1, 3, 7, 1, 3, 7]
-    digit_weight_pairs = zip(first_8_digits, weights)
-    
-    weighted_products = [
-    int(digit) * weight 
-    for digit, weight in digit_weight_pairs
-    
-            ]
-    weighted_sum = sum(weighted_products)
-    checksum_digit = (10 - (weighted_sum % 10)) % 10
-    
-    routing_no = f"{first_8_digits}{checksum_digit}"
-    if routing_no not in used_routing_numbers:
+
+    valid_prefixes = [f"{i:02d}" for i in range(1, 13)] + [
+        str(i) for i in range(21, 33)
+    ]
+
+    while True:
+        prefix = random.choice(valid_prefixes)
+        middle_digits = "".join(random.choices("0123456789", k=6))
+        first_8_digits = prefix + middle_digits
+
+        weights = [3, 7, 1, 3, 7, 1, 3, 7]
+        digit_weight_pairs = zip(first_8_digits, weights)
+
+        weighted_products = [
+            int(digit) * weight for digit, weight in digit_weight_pairs
+        ]
+        weighted_sum = sum(weighted_products)
+        checksum_digit = (10 - (weighted_sum % 10)) % 10
+
+        routing_no = f"{first_8_digits}{checksum_digit}"
+        if routing_no not in used_routing_numbers:
             used_routing_numbers.add(routing_no)
-            return routing_no   
-    
-    
+            return routing_no
+
+
 def validate_us_routing_number(routing_number: str) -> bool:
-    if not routing_number or len(routing_number) != 9 or not routing_number.isdigit():  
-    return False
-    if not routing_number or len(routing_number) != 9 or not routing_number.isdigit():
+    if (
+        not routing_number
+        or len(routing_number) != 9
+        or not routing_number.isdigit()
+    ):
         return False
 
     weights = [3, 7, 1, 3, 7, 1, 3, 7, 1]
@@ -359,26 +368,25 @@ def validate_us_routing_number(routing_number: str) -> bool:
     )
 
     return weighted_sum % 10 == 0
-    
-    
-used_sort_code: Set[str] = set()   
+
+
 def generate_sort_code(bank_country_code: str) -> Optional[str]:
-
-
     if bank_country_code.upper() != "UK":
         return None
-    digits = "".join(random.choices("0123456789", k=6))
-    sort_code = f"{digits[0:2]}-{digits[2:4]}-{digits[4:6]}"
-    
-    
-    if sort_code not in used_sort_code:
-            used_sort_code.add(sort_code)
-            return sort_code 
-    
-def validate_uk_sort_code(sort_code: str) -> bool:
 
+    while True:
+        digits = "".join(random.choices("0123456789", k=6))
+        sort_code = f"{digits[0:2]}-{digits[2:4]}-{digits[4:6]}"
+
+        if sort_code not in used_sort_code:
+            used_sort_code.add(sort_code)
+            return sort_code
+
+
+def validate_uk_sort_code(sort_code: str) -> bool:
     if not sort_code:
         return False
+
     clean_sort_code = sort_code.replace("-", "")
     if len(clean_sort_code) != 6 or not clean_sort_code.isdigit():
         return False
@@ -390,11 +398,7 @@ def validate_uk_sort_code(sort_code: str) -> bool:
         for part in parts:
             if len(part) != 2 or not part.isdigit():
                 return False
+
     return True
-      
-    
-    
-
-
         
 
