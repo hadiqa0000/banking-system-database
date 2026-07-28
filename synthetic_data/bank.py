@@ -297,7 +297,8 @@ def generate_bank_legal_name(
 
     return name
            
-       
+           
+used_bic: Set[str] = set()                
 def generate_bic(bank_name: str, country: str, city: str) -> str:
     country_code = country_codes.get(country, 'XX')
     bank_code = ''.join([c for c in bank_name.upper() if c.isalpha()])[:4]
@@ -312,10 +313,12 @@ def generate_bic(bank_name: str, country: str, city: str) -> str:
     bic_8 = f"{bank_code}{country_code}{city_code}"    
     bic_11 = f"{bic_8}XXX"
     
-    return bic_11 if random.choice([True, False]) else bic_8     
+   if bic not in used_bic:
+            used_bic.add(bic)
+            return bic   
     
     
-    
+used_routing_numbers: Set[str] = set()    
 def generate_us_routing_number(bank_country_code : str) -> str:
 
     if bank_country_code.upper() != "US":
@@ -337,7 +340,12 @@ def generate_us_routing_number(bank_country_code : str) -> str:
             ]
     weighted_sum = sum(weighted_products)
     checksum_digit = (10 - (weighted_sum % 10)) % 10
-    return f"{first_8_digits}{checksum_digit}"
+    
+    routing_no = f"{first_8_digits}{checksum_digit}"
+    if routing_no not in used_routing_numbers:
+            used_routing_numbers.add(routing_no)
+            return routing_no   
+    
     
 def validate_us_routing_number(routing_number: str) -> bool:
     if not routing_number or len(routing_number) != 9 or not routing_number.isdigit():  
@@ -353,7 +361,7 @@ def validate_us_routing_number(routing_number: str) -> bool:
     return weighted_sum % 10 == 0
     
     
-    
+used_sort_code: Set[str] = set()   
 def generate_sort_code(bank_country_code: str) -> Optional[str]:
 
 
@@ -361,8 +369,12 @@ def generate_sort_code(bank_country_code: str) -> Optional[str]:
         return None
     digits = "".join(random.choices("0123456789", k=6))
     sort_code = f"{digits[0:2]}-{digits[2:4]}-{digits[4:6]}"
-    return sort_code
-
+    
+    
+    if sort_code not in used_sort_code:
+            used_sort_code.add(sort_code)
+            return sort_code 
+    
 def validate_uk_sort_code(sort_code: str) -> bool:
 
     if not sort_code:
