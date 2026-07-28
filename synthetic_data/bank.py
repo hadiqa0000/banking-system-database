@@ -7,6 +7,12 @@ from typing import Set, tuple
 from .config import countries
 import re
 import string
+from scipy import stats
+import warnings
+import numpy as np
+import pandas as pd
+from datetime import datetime, timedelta
+warnings.filterwarnings('ignore')
 
 
 
@@ -400,5 +406,23 @@ def validate_uk_sort_code(sort_code: str) -> bool:
                 return False
 
     return True
-        
+    
+
+def generate_random_bank_date(start_year: int = 2010, end_year: int = 2025) -> str:
+    start_date = datetime(start_year, 1, 1)
+   
+    end_date = datetime(end_year, 12, 31, 23, 59, 59)
+    
+    time_between = end_date - start_date
+    days_between = time_between.days
+    
+    random_days = random.randrange(days_between)
+    random_seconds = random.randrange(86400)
+    
+    random_date = start_date + timedelta(days=random_days, seconds=random_seconds)
+    
+    
+    return random_date.strftime("%Y-%m-%d %H:%M:%S")
+
+def generate_bank_status()-> str:
 
