@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-
+#keys: values
 UNITED_STATES_GEOGRAPHY = {
     "New York": ["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island", "Williamsburg", "Harlem"],
     "Los Angeles": ["Hollywood", "Santa Monica", "Beverly Hills", "Downtown LA", "Venice", "Silver Lake", "Pasadena"],
@@ -261,11 +261,11 @@ PAKISTAN_GEOGRAPHY = {
     "Panjgur": ["Cantonment", "Gulshan", "Turbat", "Dasht", "Kech", "Hoshab", "Mand", "Suntsar", "Gabd", "Kalar"]
 }
 
-
+#keys :values
 ALL_GEOGRAPHIES = {
-    "Turkey": TURKIYE_GEOGRAPHY,
-    "USA": US_GEOGRAPHY,
-    "UK": UK_GEOGRAPHY
+    "Pakistan": PAKISTAN_GEOGRAPHY,
+    "USA": UNITED_STATES_GEOGRAPHY,
+    "UK": UNITED_KINGDOM_GEOGRAPHY,
 }
 
 

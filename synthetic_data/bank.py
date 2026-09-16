@@ -1,9 +1,7 @@
 from __future__ import annotations
 import random
-from typing import Dict, List, Optional, Union,Tuple
-from datetime import date
+from typing import Dict, List, Optional, Union,Tuple,Set
 from dataclasses import dataclass
-from typing import Set, tuple 
 from .config import countries
 import re
 import string
@@ -11,12 +9,9 @@ from scipy import stats
 import warnings
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 warnings.filterwarnings('ignore')
-
-
-
- 
+import psycopg2
 @dataclass
 class Address:
     building_no: str
@@ -27,8 +22,6 @@ class Address:
     
     def to_string(self) -> str:
         return f"Sk. {self.street_no}, bina: {self.building_no}, {self.district}/{self.city}, {self.country}"
-
-
 @dataclass 
 class Bank:
     bank_id: int
@@ -44,21 +37,19 @@ class Bank:
     @property
     def bank_headquarters_city(self) -> str:
         return self.bank_headquarters_address.city
-        
+       
 def generate_unique_addresses() -> Address:
-    generated_addresses: Set[Tuple] = set() 
-    while True:
-       country = random.choice(list(ALL_GEOGRAPHIES.keys()))
-       city_map = ALL_GEOGRAPHIES[country]
+    generated_addresses: Set[Tuple] = set() #we create a set (stores unordered collection of items) to store tuples
+    while True: #while condition is true but there is no condition here 
+       country = random.choice(list(ALL_GEOGRAPHIES.keys())) #we define countries to be keys (which are the name of the countries along with other lists (which define  the cities as keys and the areas as their values
+       city_map = ALL_GEOGRAPHIES[country] #we say the values of the all geography we have are the city map of the specfic country(value)
        
        
-       city = random.choice(list(city_map.keys())
-       district = random.choice(city_map[city])
+       city = random.choice(list(city_map.keys())) #specifc  city is the keys from the city_map
+       district = random.choice(city_map[city]) #the values of that
        
-       building_no = str(random.randint(1,50))
-       street_no = str(random.randint(1,40))
-       
-       
+       building_no = str(random.randint(1,50)) #choosing random building no 
+       street_no = str(random.randint(1,40)) #choosing random street no 
        addr = Address(
            building_no = building_no,
            street_no = street_no,
@@ -67,13 +58,12 @@ def generate_unique_addresses() -> Address:
            country=country
            
            )
-        generated_addr= (country,city,district,street_no,building_no)
-        
-        if generated_addr not in generated_addresses:
+        generated_addr= (country,city,district,street_no,building_no) #we decide this is waht we want in our generated_addr
+        if generated_addr not in generated_addresses: #and we put the generated_addr in the generated_addresses
           generated_addresses.add(generated_addr)
-          return addr
+          return addr #and this function returns a unique address
 def generate_bank_legal_name(
-    country: str = "US",
+    country: str = "US", #for a specific country name
     geography_data: Dict = None,
     city: str = None,
     district: str = None,
@@ -332,12 +322,21 @@ def generate_bic(bank_name: str, country: str, city: str) -> str:
             return bic
 
 
-def generate_us_routing_number(bank_country_code: str) -> Optional[str]:
+
+
+
+def generate_us_routing_number(
+    bank_country_code: str, used_routing_numbers: set = None
+) -> Optional[str]:
     if bank_country_code.upper() != "US":
         return None
 
+    if used_routing_numbers is None:
+        used_routing_numbers = set()
+
+    # Valid US Routing prefixes: Federal Reserve Districts 01-12 and 21-32
     valid_prefixes = [f"{i:02d}" for i in range(1, 13)] + [
-        str(i) for i in range(21, 33)
+        f"{i:02d}" for i in range(21, 33)
     ]
 
     while True:
@@ -355,10 +354,10 @@ def generate_us_routing_number(bank_country_code: str) -> Optional[str]:
         checksum_digit = (10 - (weighted_sum % 10)) % 10
 
         routing_no = f"{first_8_digits}{checksum_digit}"
+
         if routing_no not in used_routing_numbers:
             used_routing_numbers.add(routing_no)
             return routing_no
-
 
 def validate_us_routing_number(routing_number: str) -> bool:
     if (
@@ -411,7 +410,7 @@ def validate_uk_sort_code(sort_code: str) -> bool:
 def generate_random_bank_date(start_year: int = 2010, end_year: int = 2025) -> str:
     start_date = datetime(start_year, 1, 1)
    
-    end_date = datetime(end_year, 12, 31, 23, 59, 59)
+    end_date = datetime(end_year, 12, 31)
     
     time_between = end_date - start_date
     days_between = time_between.days
@@ -424,5 +423,70 @@ def generate_random_bank_date(start_year: int = 2010, end_year: int = 2025) -> s
     
     return random_date.strftime("%Y-%m-%d %H:%M:%S")
 
-def generate_bank_status()-> str:
 
+def generate_bank_status() -> str:
+    """Returns a weighted random status for the bank."""
+    statuses = ["Active", "Active", "Active", "suspended", "closed", "Active"]
+    return random.choice(statuses)
+    
+    
+    
+def generate_banks() -> List[Bank]:
+    country_distribution = [("US", 90), ("UK", 44), ("PAKISTAN", 17)]
+    total_banks = sum(count for _, count in country_distribution)
+    status_pool = generate_status_list(total_banks)
+
+    # Standardized country codes
+    country_iso_map = {"US": "US", "UK": "GB", "PAKISTAN": "PK"}
+
+    banks: List[Bank] = []
+    bank_id_counter = 1
+
+    for country, count in country_distribution:
+        iso_code = country_iso_map[country]
+
+        for _ in range(count):
+            addr = generate_unique_addresses()
+            addr.country = country
+
+            legal_name = generate_bank_legal_name(
+                country=country,
+                city=addr.city,
+                district=addr.district,
+                bank_type=(
+                    "islamic"
+                    if country == "PAKISTAN" and random.random() < 0.3
+                    else "commercial"
+                ),
+            )
+
+            bic = generate_bic(legal_name, country, addr.city)
+
+            # Pass 'country' directly ("US", "UK", "PAKISTAN") so validation matches cleanly
+            routing_no = generate_us_routing_number(country)
+            sort_code = generate_sort_code(country)
+            license_no = generate_license_number(country)
+
+            opened_at_str = generate_random_bank_date(2000, 2024)
+            opened_at = datetime.strptime(
+                opened_at_str, "%Y-%m-%d %H:%M:%S"
+            ).date()
+            status = status_pool.pop()
+
+            bank = Bank(
+                bank_id=bank_id_counter,
+                bank_legal_name=legal_name,
+                bic=bic,
+                bank_routing_no=routing_no,
+                bank_sort_code=sort_code,
+                bank_country_code=iso_code,
+                bank_opened_at=opened_at,
+                bank_status=status,
+                bank_headquarters_address=addr,
+                license_number=license_no,
+            )
+
+            banks.append(bank)
+            bank_id_counter += 1
+
+    return banks
